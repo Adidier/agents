@@ -8,11 +8,11 @@ import os
 import sys
 import argparse
 
+from a2a.serverOllama import run_server
+from a2a.core.a2a_ollama import A2AOllama
+
 # Add the parent directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
-
-from a2a.server import run_server
-
 
 def main():
     """Run the weather agent server."""
@@ -50,14 +50,20 @@ def main():
     As a weather Agent, your goal is to provide accurate information without speculation or opinion.
     """
     
-    # Start the A2A server with the Knowledge Agent
+    serverOllama = A2AOllama(
+            model=args.model,
+            name="Solar Wheather",
+            skills=skills,
+            description="An A2A agent that specializes in generating solar resume",
+            host=args.ollama_host,
+            endpoint=args.ollama_host,
+        )
+    
+    
+    # Start the A2A server with the Reasoning Agent
     run_server(
-        model=args.model,
-        name="weather Agent",
-        description="An A2A agent that specializes in providing weather information and research",
-        skills=skills,
         port=args.port,
-        ollama_host=args.ollama_host
+        iaAlgorithm=serverOllama
     )
 
 
