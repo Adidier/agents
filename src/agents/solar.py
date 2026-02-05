@@ -14,8 +14,8 @@ import random
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from a2a.serverOllama import run_server
-from a2a.algorithms.a2a_lstm import A2ALSTM
-from a2a.algorithms.a2a_pv_simulator import PVSimulator
+from algorithms.lstm.lstm import A2ALSTM
+from algorithms.lstm.pv_simulator import PVSimulator
 
 
 def main():
@@ -38,6 +38,8 @@ def main():
     parser.add_argument("--model", type=str, default="solar-expert-system", help="The model type to use")
     parser.add_argument("--port", type=int, default=8002, help="The port to run the server on")
     parser.add_argument("--ollama-host", type=str, default="http://localhost:11434", help="The Ollama host URL")
+    parser.add_argument("--auto-simulate", action="store_true", default=True, help="Auto-simulate real power for supervision")
+    parser.add_argument("--no-simulate", dest="auto_simulate", action="store_false", help="Disable auto-simulation")
     
     args = parser.parse_args()
     
@@ -49,6 +51,7 @@ def main():
         description="An A2A agent that specializes in providing solar information and forecasts",
         host=args.ollama_host,
         endpoint=args.ollama_host,
+        auto_simulate=args.auto_simulate,
     )
     
     # Attempt to load a pre-trained LSTM model (optional).
@@ -75,75 +78,3 @@ if __name__ == "__main__":
     main() 
 
 
-
-# """
-# Weather Agent
-
-# This agent provides a weather conclusions.
-# """
-
-# import os
-# import sys
-# import argparse
-
-# # Add the parent directory to sys.path BEFORE importing a2a
-# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-# from a2a.serverOllama import run_server
-# from a2a.core.a2a_ollama import A2AOllama
-
-# def main():
-#     """Run the weather agent server."""
-#     parser = argparse.ArgumentParser(description="Run weather Agent")
-#     parser.add_argument("--model", type=str, default="llama3.2:latest", help="The Ollama model to use")
-#     parser.add_argument("--port", type=int, default=8001, help="The port to run the server on")
-#     parser.add_argument("--ollama-host", type=str, default="http://localhost:11434", help="The Ollama host URL")
-    
-#     args = parser.parse_args()
-    
-#     # Define the agent's skills
-#     skills = [
-#         {
-#             "id": "research",
-#             "name": "Research",
-#             "description": "Provides weather information on local"
-#         },
-#         {
-#             "id": "fact_check",
-#             "name": "Fact Checking",
-#             "description": "Verifies claims against known facts"
-#         }
-#     ]
-    
-#     # Create a system prompt to guide the model behavior
-#     system_prompt = """
-#     You are a specialized weather Agent that focuses on providing local information.
-#     Your responses should be:
-#     - Based on weather information
-#     - Well-structured with clear sections
-#     - Comprehensive yet concise
-#     - Focused on verifiable data and statistics
-#     - Neutral in tone
-
-#     As a weather Agent, your goal is to provide accurate information without speculation or opinion.
-#     """
-    
-#     serverOllama = A2AOllama(
-#             model=args.model,
-#             name="Solar Wheather",
-#             skills=skills,
-#             description="An A2A agent that specializes in generating solar resume",
-#             host=args.ollama_host,
-#             endpoint=args.ollama_host,
-#         )
-    
-    
-#     # Start the A2A server with the Reasoning Agent
-#     run_server(
-#         port=args.port,
-#         iaAlgorithm=serverOllama
-#     )
-
-
-# if __name__ == "__main__":
-#     main() 

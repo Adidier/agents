@@ -30,7 +30,11 @@ Notes
 # agents
 
 
-chmod +x launch_agents.sh
 
 
-./launch_agents.sh
+
+
+python src/agents/weather.py \
+    --port 8004 \
+    --lat 40.7128 \
+    --lon -74.0060
