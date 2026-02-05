@@ -140,8 +140,8 @@ def main():
 
     parser = argparse.ArgumentParser(description="A2A Multi-Agent Orchestrator")
     # parser.add_argument("--ac-endpoint", type=str, default="http://localhost:8001", help="AC Agent endpoint")
-    # parser.add_argument("--solar-endpoint", type=str, default="http://localhost:8002", help="Solar Agent endpoint")
-    parser.add_argument("--weather-endpoint", type=str, default="http://localhost:8003", help="Weather Agent endpoint")
+    parser.add_argument("--solar-endpoint", type=str, default="http://localhost:8002", help="Solar Agent endpoint")
+    
 
     args = parser.parse_args()
     

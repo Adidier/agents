@@ -1,0 +1,7 @@
+numpy
+pandas
+scikit-learn
+matplotlib
+seaborn
+tensorflow>=2.10
+# pickle5 removed: not required for Python >= 3.8 (use built-in pickle)

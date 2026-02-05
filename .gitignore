@@ -13,3 +13,6 @@ __pycache__/
 **/__pycache__/
 *.py[cod]
 *.pyc
+models/test_lstm.h5
+src/a2a/core/mcp/__pycache__/mcp_client.cpython-313.pyc
+src/a2a/core/mcp/__pycache__/mcp_tool_manager.cpython-313.pyc
