@@ -29,9 +29,11 @@ class WeatherAgent(IA2AIAAlgorithm):
     """
     Agente meteorológico que obtiene datos de la API POWER de la NASA.
     Proporciona información climática para sistemas fotovoltaicos.
+    Con soporte de servidor mock para simulación sin conexión a internet.
     """
     
     NASA_POWER_URL = "https://power.larc.nasa.gov/api/temporal/daily/point"
+    MOCK_SERVER_URL = "http://localhost:8005/api/temporal/daily/point"
     
     # Parámetros relevantes para energía solar
     SOLAR_PARAMS = [
@@ -54,6 +56,8 @@ class WeatherAgent(IA2AIAAlgorithm):
         endpoint: str = "http://localhost:8004",
         default_lat: float = 20.1011,  # Pachuca, Hidalgo, México
         default_lon: float = -98.7625,
+        mock_server_url: Optional[str] = None,
+        use_mock: bool = False,
     ):
         self.agent_card = AgentCard(
             name=name,
@@ -67,6 +71,11 @@ class WeatherAgent(IA2AIAAlgorithm):
         
         self.default_lat = default_lat
         self.default_lon = default_lon
+        
+        # Configuración del servidor mock
+        self.mock_server_url = mock_server_url or self.MOCK_SERVER_URL
+        self.use_mock = use_mock
+        self.using_mock_mode = False
         
         # Cache para evitar solicitudes repetidas
         self.cache = {}
@@ -124,11 +133,20 @@ class WeatherAgent(IA2AIAAlgorithm):
             "format": "JSON"
         }
         
+        # Determinar qué URL usar
+        url = self.mock_server_url if self.use_mock else self.NASA_POWER_URL
+        
         try:
-            response = requests.get(self.NASA_POWER_URL, params=params, timeout=30)
+            # Intentar con la API principal (o mock si está configurado)
+            response = requests.get(url, params=params, timeout=30)
             response.raise_for_status()
             
             data = response.json()
+            
+            # Marcar si estamos usando mock
+            if self.use_mock or url == self.mock_server_url:
+                self.using_mock_mode = True
+                data["_mock_mode"] = True
             
             # Guardar en cache
             self.cache[cache_key] = data
@@ -136,7 +154,22 @@ class WeatherAgent(IA2AIAAlgorithm):
             return data
             
         except requests.exceptions.RequestException as e:
-            return {"error": f"Error al conectar con NASA POWER API: {str(e)}"}
+            # Si falla la API de NASA, intentar con el servidor mock
+            if not self.use_mock and url == self.NASA_POWER_URL:
+                print(f"⚠️  API de NASA no disponible. Intentando servidor mock...")
+                try:
+                    response = requests.get(self.mock_server_url, params=params, timeout=10)
+                    response.raise_for_status()
+                    data = response.json()
+                    data["_mock_mode"] = True
+                    self.using_mock_mode = True
+                    self.cache[cache_key] = data
+                    print("✅ Usando datos simulados del servidor mock")
+                    return data
+                except:
+                    return {"error": f"Error: Sin conexión a NASA API ni servidor mock disponible. {str(e)}"}
+            else:
+                return {"error": f"Error al conectar con servidor: {str(e)}"}
         except Exception as e:
             return {"error": f"Error procesando datos: {str(e)}"}
     
@@ -151,8 +184,15 @@ class WeatherAgent(IA2AIAAlgorithm):
             if not params:
                 return "❌ No se encontraron datos meteorológicos"
             
+            # Verificar si estamos en modo simulación
+            is_mock = data.get("_mock_mode", False)
+            
             # Obtener últimos valores disponibles
-            response_parts = ["🌍 Datos Meteorológicos NASA POWER\n"]
+            if is_mock:
+                response_parts = ["🌍 Datos Meteorológicos (MODO SIMULACIÓN)\n"]
+                response_parts.append("⚠️  Usando datos simulados - Sin conexión a NASA API\n")
+            else:
+                response_parts = ["🌍 Datos Meteorológicos NASA POWER\n"]
             
             if "ALLSKY_SFC_SW_DWN" in params:
                 values = list(params["ALLSKY_SFC_SW_DWN"].values())
@@ -370,6 +410,9 @@ def main():
     parser.add_argument("--port", type=int, default=8004, help="Puerto del servidor")
     parser.add_argument("--lat", type=float, default=20.1011, help="Latitud por defecto (Pachuca, Hidalgo)")
     parser.add_argument("--lon", type=float, default=-98.7625, help="Longitud por defecto (Pachuca, Hidalgo)")
+    parser.add_argument("--mock", action="store_true", help="Usar servidor mock en lugar de NASA API")
+    parser.add_argument("--mock-url", default="http://localhost:8005/api/temporal/daily/point", 
+                        help="URL del servidor mock")
     
     args = parser.parse_args()
     
@@ -380,7 +423,9 @@ def main():
         description="Agente que obtiene datos meteorológicos de la API POWER de la NASA",
         endpoint=f"http://localhost:{args.port}",
         default_lat=args.lat,
-        default_lon=args.lon
+        default_lon=args.lon,
+        mock_server_url=args.mock_url,
+        use_mock=args.mock
     )
     
     print(f"🚀 Iniciando NASA Weather Agent en puerto {args.port}")

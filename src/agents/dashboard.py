@@ -3,6 +3,7 @@ Dashboard Agent - Real-time monitoring display
 
 Este agente lee el archivo JSON generado por el orchestrator y muestra
 el estado actual del sistema en tiempo real en la terminal.
+El usuario puede hacer preguntas al LLM de Ollama sobre los datos mostrados.
 """
 
 import os
@@ -10,6 +11,9 @@ import sys
 import json
 import time
 import argparse
+import threading
+import queue
+import requests
 from datetime import datetime
 from typing import Dict, Any, Optional
 
@@ -36,20 +40,37 @@ class Colors:
 class Dashboard:
     """
     Dashboard para monitorear el estado del sistema multi-agente.
+    Incluye chat con LLM para consultas sobre los datos.
     """
     
-    def __init__(self, json_file: str = "orchestrator_data.json", refresh_rate: int = 5):
+    def __init__(
+        self, 
+        json_file: str = "orchestrator_data.json", 
+        refresh_rate: int = 30,
+        ollama_host: str = "http://localhost:11434",
+        ollama_model: str = "llama2:latest"
+    ):
         """
         Inicializa el dashboard.
         
         Args:
             json_file: Ruta al archivo JSON del orchestrator
             refresh_rate: Segundos entre actualizaciones
+            ollama_host: URL del servidor Ollama
+            ollama_model: Modelo de Ollama a usar
         """
         self.json_file = json_file
         self.refresh_rate = refresh_rate
+        self.ollama_host = ollama_host.rstrip("/")
+        self.ollama_model = ollama_model
         self.last_data = None
         self.last_modified = 0
+        
+        # Queue para manejar preguntas del usuario
+        self.question_queue = queue.Queue()
+        self.answer_queue = queue.Queue()
+        self.chat_active = False
+        self.stop_threads = False
     
     def clear_screen(self):
         """Limpia la pantalla de la terminal."""
@@ -97,7 +118,154 @@ class Dashboard:
         elif light_status == "red":
             return Colors.RED
         return Colors.WHITE
-        return Colors.WHITE
+    
+    def get_context_for_llm(self) -> str:
+        """
+        Genera un contexto resumido de los datos actuales para el LLM.
+        
+        Returns:
+            String con el contexto de los datos
+        """
+        if not self.last_data:
+            return "No hay datos disponibles actualmente."
+        
+        history = self.last_data.get("history", [])
+        if not history:
+            return "No hay histórico de datos disponible."
+        
+        latest = history[-1]
+        agents_data = latest.get("agents", {})
+        
+        context_parts = [
+            f"Dashboard del sistema multi-agente - Iteración #{latest.get('iteration', 0)}",
+            f"Timestamp: {latest.get('timestamp', '')}",
+            "\nDatos actuales de los agentes:\n"
+        ]
+        
+        for agent_name, agent_data in agents_data.items():
+            context_parts.append(f"\n{agent_name.upper()} Agent:")
+            
+            if "result" in agent_data and isinstance(agent_data["result"], dict):
+                result = agent_data["result"]
+                
+                # Clasificación PV
+                if result.get("type") == "pv_classification":
+                    pred = result.get("predicted_power", 0)
+                    real = result.get("real_power", 0)
+                    deviation = result.get("deviation_percent", 0)
+                    scenario = result.get("scenario", "UNKNOWN")
+                    supervision = result.get("supervision", {})
+                    
+                    context_parts.append(f"  - Escenario: {scenario}")
+                    context_parts.append(f"  - Predicción: {pred:.2f} kW")
+                    context_parts.append(f"  - Potencia real: {real:.2f} kW")
+                    context_parts.append(f"  - Desviación: {deviation:.2f}%")
+                    context_parts.append(f"  - Estado supervisión: {supervision.get('light_status', 'unknown')}")
+                    context_parts.append(f"  - Mensaje: {supervision.get('message', '')}")
+                
+                # Otros tipos de datos
+                else:
+                    if "content" in result:
+                        content = result["content"]
+                        # Limitar la longitud del contenido
+                        if len(content) > 500:
+                            content = content[:500] + "..."
+                        context_parts.append(f"  {content}")
+                    else:
+                        for key, value in result.items():
+                            if key not in ["type", "supervision"]:
+                                context_parts.append(f"  - {key}: {value}")
+        
+        return "\n".join(context_parts)
+    
+    def ask_ollama(self, question: str) -> str:
+        """
+        Hace una pregunta a Ollama con el contexto de los datos actuales.
+        
+        Args:
+            question: Pregunta del usuario
+            
+        Returns:
+            Respuesta del LLM
+        """
+        try:
+            # Obtener contexto de los datos
+            context = self.get_context_for_llm()
+            
+            # Imprimir el contexto
+            print(f"\n{Colors.MAGENTA}{'─' * 80}{Colors.RESET}")
+            print(f"{Colors.MAGENTA}{Colors.BOLD}📋 CONTEXTO ENVIADO A OLLAMA:{Colors.RESET}")
+            print(f"{Colors.MAGENTA}{'─' * 80}{Colors.RESET}")
+            print(f"{Colors.WHITE}{context}{Colors.RESET}")
+            print(f"{Colors.MAGENTA}{'─' * 80}{Colors.RESET}\n")
+            
+            # Preparar el prompt con contexto
+            prompt = f"""Eres un asistente experto en sistemas de energía solar y monitoreo de sistemas multi-agente.
+
+Contexto actual del sistema:
+{context}
+
+Pregunta del usuario: {question}
+
+Proporciona una respuesta clara y concisa basada en los datos mostrados arriba."""
+            
+            # Hacer request a Ollama
+            response = requests.post(
+                f"{self.ollama_host}/api/generate",
+                json={
+                    "model": self.ollama_model,
+                    "prompt": prompt,
+                    "stream": False
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                return result.get("response", "No se recibió respuesta del modelo.")
+            else:
+                return f"Error al consultar Ollama: HTTP {response.status_code}"
+                
+        except requests.exceptions.ConnectionError:
+            return f"❌ No se puede conectar con Ollama en {self.ollama_host}. ¿Está corriendo?"
+        except requests.exceptions.Timeout:
+            return "❌ Timeout al consultar Ollama. El modelo puede estar ocupado."
+        except Exception as e:
+            return f"❌ Error: {str(e)}"
+    
+    def input_thread_func(self):
+        """Thread que lee input del usuario de forma asíncrona."""
+        while not self.stop_threads:
+            try:
+                # Mostrar prompt solo si no hay chat activo
+                if not self.chat_active:
+                    print(f"\n{Colors.CYAN}💬 Pregunta (o 'Enter' para continuar): {Colors.RESET}", end="", flush=True)
+                
+                question = input().strip()
+                
+                if question:
+                    self.chat_active = True
+                    self.question_queue.put(question)
+                    
+                    # Esperar respuesta
+                    answer = self.answer_queue.get()
+                    
+                    # Mostrar respuesta
+                    print(f"\n{Colors.GREEN}🤖 Ollama:{Colors.RESET}")
+                    print(f"{Colors.WHITE}{answer}{Colors.RESET}")
+                    print(f"\n{Colors.YELLOW}Presiona Enter para continuar...{Colors.RESET}", end="", flush=True)
+                    input()
+                    
+                    self.chat_active = False
+                else:
+                    # Solo Enter presionado, continuar con refresh
+                    time.sleep(0.1)
+                    
+            except EOFError:
+                break
+            except Exception as e:
+                print(f"{Colors.RED}Error en input thread: {e}{Colors.RESET}")
+                break
     
     def display_agent_data(self, agent_name: str, agent_data: Dict[str, Any]):
         """
@@ -212,6 +380,9 @@ class Dashboard:
             print(f"{Colors.YELLOW}   Archivo: {self.json_file}{Colors.RESET}")
             return
         
+        # Guardar los datos en last_data para uso del LLM
+        self.last_data = data
+        
         # Mostrar encabezado
         metadata = data.get("metadata", {})
         self.display_header(metadata)
@@ -239,29 +410,60 @@ class Dashboard:
         print(f"{Colors.CYAN}🔄 Actualizando cada {self.refresh_rate} segundos... (Ctrl+C para salir){Colors.RESET}")
     
     def run(self):
-        """Ejecuta el dashboard en modo continuo."""
+        """Ejecuta el dashboard en modo continuo con chat interactivo."""
         print(f"{Colors.BOLD}{Colors.GREEN}Dashboard Agent iniciado{Colors.RESET}")
         print(f"Monitoreando: {self.json_file}")
-        print(f"Tasa de actualización: {self.refresh_rate} segundos\n")
+        print(f"Tasa de actualización: {self.refresh_rate} segundos")
+        print(f"Modelo Ollama: {self.ollama_model} @ {self.ollama_host}")
+        print(f"\n{Colors.CYAN}💡 Puedes hacer preguntas sobre los datos en cualquier momento{Colors.RESET}\n")
+        
+        # Iniciar thread de input
+        input_thread = threading.Thread(target=self.input_thread_func, daemon=True)
+        input_thread.start()
         
         try:
+            last_refresh = time.time()
+            
             while True:
-                self.clear_screen()
-                self.display_dashboard()
-                time.sleep(self.refresh_rate)
+                current_time = time.time()
+                
+                # Actualizar dashboard si ha pasado el tiempo de refresh
+                if current_time - last_refresh >= self.refresh_rate and not self.chat_active:
+                    self.display_dashboard()
+                    last_refresh = current_time
+                
+                # Procesar preguntas del usuario
+                try:
+                    question = self.question_queue.get_nowait()
+                    
+                    # Mostrar que estamos procesando
+                    print(f"\n{Colors.YELLOW}🤔 Consultando a Ollama...{Colors.RESET}", flush=True)
+                    
+                    # Obtener respuesta
+                    answer = self.ask_ollama(question)
+                    
+                    # Poner respuesta en queue
+                    self.answer_queue.put(answer)
+                    
+                except queue.Empty:
+                    pass
+                
+                # Sleep corto para no consumir mucho CPU
+                time.sleep(0.1)
         
         except KeyboardInterrupt:
-            self.clear_screen()
+            self.stop_threads = True
             print(f"\n{Colors.BOLD}{Colors.GREEN}Dashboard Agent detenido{Colors.RESET}")
             print(f"Adiós! 👋\n")
         
         except Exception as e:
+            self.stop_threads = True
             print(f"\n{Colors.RED}Error inesperado: {e}{Colors.RESET}") 
 
 
 def main():
     """Función principal."""
-    parser = argparse.ArgumentParser(description="A2A Multi-Agent Dashboard")
+    parser = argparse.ArgumentParser(description="A2A Multi-Agent Dashboard with Ollama Chat")
     parser.add_argument(
         "--input",
         type=str,
@@ -271,14 +473,31 @@ def main():
     parser.add_argument(
         "--refresh",
         type=int,
-        default=5,
-        help="Refresh rate in seconds (default: 5)"
+        default=30,
+        help="Refresh rate in seconds (default: 30)"
+    )
+    parser.add_argument(
+        "--ollama-host",
+        type=str,
+        default="http://localhost:11434",
+        help="Ollama server URL (default: http://localhost:11434)"
+    )
+    parser.add_argument(
+        "--ollama-model",
+        type=str,
+        default="deepseek-r1:1.5b",
+        help="Ollama model to use (default:deepseek-r1:1.5b)"
     )
     
     args = parser.parse_args()
     
     # Crear y ejecutar el dashboard
-    dashboard = Dashboard(json_file=args.input, refresh_rate=args.refresh)
+    dashboard = Dashboard(
+        json_file=args.input, 
+        refresh_rate=args.refresh,
+        ollama_host=args.ollama_host,
+        ollama_model=args.ollama_model
+    )
     dashboard.run()
 
 
