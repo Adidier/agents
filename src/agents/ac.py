@@ -9,7 +9,7 @@ import sys
 import argparse
 
 # Add the parent directory to sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from a2a.serverOllama import run_server
 from a2a.core.a2a_ollama import A2AOllama
