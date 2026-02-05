@@ -74,12 +74,26 @@ class A2ALSTM(IA2AIAAlgorithm):
         """Try to predict using LSTM with default CSV path. Returns None if fails."""
         if not self.lstm_helper:
             return None
-        # Try default CSV path (relative to repo root)
-        csv_path = "examples/LSTM3miso/completeDataF.csv"
-        if not os.path.exists(csv_path):
+        # Try multiple possible CSV paths
+        csv_paths = [
+            "examples/LSTM3miso/completeDataF.csv",
+            "models/completeDataF.csv",
+            "../examples/LSTM3miso/completeDataF.csv",
+            "../models/completeDataF.csv",
+        ]
+        df = None
+        for csv_path in csv_paths:
+            if os.path.exists(csv_path):
+                try:
+                    df = pd.read_csv(csv_path)
+                    break
+                except Exception:
+                    continue
+        
+        if df is None:
             return None
+        
         try:
-            df = pd.read_csv(csv_path)
             prediction = self.lstm_helper.predict_next(df)
             return prediction
         except Exception:
