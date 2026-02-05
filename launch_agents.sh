@@ -2,7 +2,7 @@
 
 # Define the list of agent scripts to launch
 AGENTS=(
-    "agents/weather.py"
+    "agents/solar.py"
 )
 
 # Get the directory of the current script

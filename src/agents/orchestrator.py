@@ -2,18 +2,21 @@
 Multi-Agent Example - Orchestrator
 
 This module coordinates multiple specialized A2A agents to complete complex tasks.
+Includes continuous monitoring with traffic light supervision system.
 """
 
 import os
 import sys
 import argparse
 import time
+import random
 from typing import Dict, Any, List
 
 # Add the parent directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from a2a.client import A2AClient
+from a2a.algorithms.a2a_pv_simulator import PVSimulator
 
 
 class AgentOrchestrator:
@@ -21,15 +24,31 @@ class AgentOrchestrator:
     Orchestrator for coordinating multiple A2A agents.
     """
     
-    def __init__(self, **endpoints):
+    def __init__(self, simulate_real_data: bool = True, **endpoints):
         """
         Initialize the orchestrator with dynamic endpoints.
         
         Args:
+            simulate_real_data: Si True, simula valores reales para el sistema de supervisión
             **endpoints: Variable keyword arguments for agent endpoints
                         (e.g., ac_endpoint="http://localhost:8001")
         """
         self.clients = {}
+        self.simulate_real_data = simulate_real_data
+        self.simulator = PVSimulator(seed=None) if simulate_real_data else None  # Sin semilla para más aleatoriedad
+        
+        # Escenarios rotativos para simulación - más variados
+        self.scenario_cycle = [
+            "normal",      # 🟢 Verde
+            "normal",      # 🟢 Verde
+            "degraded",    # 🟡 Amarillo
+            "normal",      # 🟢 Verde
+            "fault",       # 🔴 Rojo
+            "degraded",    # 🟡 Amarillo
+            "fault",       # 🔴 Rojo
+            "normal",      # 🟢 Verde
+        ]
+        self.scenario_index = 0
         
         # Create clients dynamically for each endpoint
         for name, endpoint in endpoints.items():
@@ -55,10 +74,77 @@ class AgentOrchestrator:
             sys.exit(1)
     
     def _extract_content(self, response: Dict[str, Any]) -> str:
-        """Extract text content from an agent response."""
+        """Extract text content from an agent response, including supervision status."""
         if not response:
             return "No content available"
         
+        # Check if it's a task response with result
+        if "result" in response and isinstance(response["result"], dict):
+            result = response["result"]
+            content_parts = []
+            
+            # Check if it's a classification result (with real power comparison)
+            if result.get("type") == "pv_classification":
+                pred = result.get("predicted_power", 0)
+                real = result.get("real_power", 0)
+                deviation = result.get("deviation_percent", 0)
+                deviation_instant = result.get("deviation_instant", 0)
+                supervision = result.get("supervision", {})
+                metrics = result.get("metrics", {})
+                
+                emoji = supervision.get("light_emoji", "⚪")
+                message = supervision.get("message", "")
+                
+                content_parts.append(f"📊 Predicción: {pred:.2f} kW")
+                content_parts.append(f"\n📈 Real: {real:.2f} kW")
+                content_parts.append(f"\n{emoji} {message}")
+                content_parts.append(f"\n   Desviación: {deviation:.2f}% (Instantánea: {deviation_instant:.2f}%)")
+                
+                if metrics:
+                    mae = metrics.get("MAE", 0)
+                    rmse = metrics.get("RMSE", 0)
+                    content_parts.append(f"\n   MAE: {mae:.4f} | RMSE: {rmse:.4f}")
+                
+                return "".join(content_parts)
+            
+            # Regular prediction result
+            # Extract formatted value
+            if "formatted" in result:
+                content_parts.append(f"📊 {result['formatted']}")
+            elif "value" in result:
+                unit = result.get("unit", "")
+                content_parts.append(f"📊 {result['value']:.2f} {unit}")
+            
+            # Extract supervision info if available
+            if "supervision" in result:
+                supervision = result["supervision"]
+                light = supervision.get("light_status", "unknown")
+                emoji = supervision.get("light_emoji", "⚪")
+                
+                if light == "green":
+                    content_parts.append(f"\n{emoji} Estado: NORMAL - Sistema operando correctamente")
+                elif light == "yellow":
+                    content_parts.append(f"\n{emoji} Estado: ADVERTENCIA - Desviación moderada detectada")
+                elif light == "red":
+                    content_parts.append(f"\n{emoji} Estado: FALLA CRÍTICA - Intervención requerida")
+                else:
+                    content_parts.append(f"\n{emoji} Estado: {light.upper()}")
+                
+                # Add stats if available
+                if "recent_stats" in supervision and supervision.get("history_size", 0) > 0:
+                    stats = supervision["recent_stats"]
+                    total = stats.get("total", 0)
+                    if total > 0:
+                        content_parts.append(
+                            f"\n   Últimas {total} mediciones: "
+                            f"🟢{stats.get('green', 0)} | "
+                            f"🟡{stats.get('yellow', 0)} | "
+                            f"🔴{stats.get('red', 0)}"
+                        )
+            
+            return "".join(content_parts) if content_parts else str(result)
+        
+        # Fallback to original message extraction
         if "message" in response:
             if response["message"] and "parts" in response["message"]:
                 for part in response["message"]["parts"]:
@@ -94,6 +180,28 @@ class AgentOrchestrator:
                 print(f"Warning: Empty response from {agent_name.capitalize()} Agent")
                 content = f"No response from {agent_name.capitalize()} Agent"
             else:
+                # Si es el agente solar y tenemos simulador, enviar valor real
+                if agent_name == "solar" and self.simulate_real_data and "result" in agent_response:
+                    predicted_value = self._extract_prediction_value(agent_response)
+                    if predicted_value is not None:
+                        # Simular valor real con escenarios rotativos
+                        scenario = self.scenario_cycle[self.scenario_index % len(self.scenario_cycle)]
+                        self.scenario_index += 1
+                        
+                        real_power = self.simulator.simulate_real_power(predicted_value, scenario=scenario)
+                        
+                        # Mostrar escenario usado
+                        scenario_emoji = {"normal": "🟢", "degraded": "🟡", "fault": "🔴"}.get(scenario, "⚪")
+                        print(f"   {scenario_emoji} Escenario: {scenario.upper()} (Real: {real_power:.2f} kW)")
+                        
+                        # Enviar valor real al agente
+                        real_msg = f"REAL_POWER:{real_power:.2f}"
+                        updated_response = client.chat(real_msg)
+                        
+                        # Usar respuesta actualizada si está disponible
+                        if updated_response:
+                            agent_response = updated_response
+                
                 content = self._extract_content(agent_response)
             
             responses[agent_name] = content
@@ -101,48 +209,20 @@ class AgentOrchestrator:
         
         return responses
     
-    def generate_report(self, topic: str, responses: Dict[str, str]) -> str:
-        """
-        Generate a comprehensive report based on agent responses.
-        
-        Args:
-            topic: The original topic
-            responses: Responses from each agent
-            
-        Returns:
-            Formatted report
-        """
-        # Send the combined insights to the creative agent for final coherent presentation
-        synthesis_prompt = f"""
-        Create a comprehensive, well-structured article about {topic} using the following three components:
-        
-        1. INTRODUCTION:
-        {responses['creative']}
-        
-        2. FACTS AND CONTEXT:
-        {responses['knowledge']}
-        
-        3. ANALYSIS AND IMPLICATIONS:
-        {responses['reasoning']}
-        
-        Synthesize these into a cohesive, engaging article with appropriate sections and a conclusion.
-        Make the transitions between sections smooth and natural.
-        """
-        
-        print("\n4. Synthesizing final report...")
-        synthesis_response = self.creative_client.chat(synthesis_prompt)
-        synthesis_content = self._extract_content(synthesis_response)
-        
-        return f"# Comprehensive Analysis: {topic.title()}\n\n{synthesis_content}"
+    def _extract_prediction_value(self, response: Dict[str, Any]) -> float:
+        """Extrae el valor numérico de predicción de una respuesta."""
+        try:
+            if "result" in response and isinstance(response["result"], dict):
+                return float(response["result"].get("value", 0))
+        except (ValueError, TypeError):
+            pass
+        return None
 
 
 def main():
-
     parser = argparse.ArgumentParser(description="A2A Multi-Agent Orchestrator")
-    # parser.add_argument("--ac-endpoint", type=str, default="http://localhost:8001", help="AC Agent endpoint")
     parser.add_argument("--solar-endpoint", type=str, default="http://localhost:8002", help="Solar Agent endpoint")
     
-
     args = parser.parse_args()
     
     # Dynamically create endpoint arguments
@@ -154,23 +234,31 @@ def main():
     # Create the orchestrator with dynamic endpoints
     orchestrator = AgentOrchestrator(**endpoints)
     
-    # Process the topic
-    responses = orchestrator.process_topic("")
+    # Continuous monitoring loop
+    print("\n" + "="*80)
+    print("Starting continuous monitoring (polling every 10 seconds)")
+    print("Press Ctrl+C to stop")
+    print("="*80)
     
-    # # Generate and print the final report
-    # report = orchestrator.generate_report(args.topic, responses)
-    
-    # print("\n" + "="*80)
-    # print("\nFINAL REPORT:\n")
-    # print(report)
-    # print("\n" + "="*80)
-    
-    # # Save the report to a file
-    # filename = f"{args.topic.replace(' ', '_').lower()}_report.md"
-    # with open(filename, "w") as f:
-    #     f.write(report)
-    
-    # print(f"\nReport saved to {filename}")
+    try:
+        iteration = 0
+        while True:
+            iteration += 1
+            print(f"\n{'='*80}")
+            print(f"Iteration #{iteration} - {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"{'='*80}")
+            
+            # Process and get status from all agents
+            responses = orchestrator.process_topic("")
+            
+            # Wait 10 seconds before next iteration
+            print(f"\n⏳ Waiting 10 seconds before next check...")
+            time.sleep(1)
+            
+    except KeyboardInterrupt:
+        print("\n\n" + "="*80)
+        print("Monitoring stopped by user")
+        print("="*80)
 
 
 if __name__ == "__main__":

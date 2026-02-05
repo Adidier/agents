@@ -1,18 +1,21 @@
 """
 Solar Agent
 
-This agent provides solar information and forecasts.
+This agent provides solar information and forecasts with automatic supervision.
+Includes traffic light classification system for PV performance monitoring.
 """
 
 import os
 import sys
 import argparse
+import random
 
 # Add the parent directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from a2a.serverOllama import run_server
 from a2a.algorithms.a2a_lstm import A2ALSTM
+from a2a.algorithms.a2a_pv_simulator import PVSimulator
 
 
 def main():
