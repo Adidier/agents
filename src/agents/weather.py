@@ -440,6 +440,14 @@ def main():
 
 
 if __name__ == "__main__":
+    import sys
+    import codecs
+    
+    # Forzar codificación UTF-8 para manejar emojis
+    if sys.stdout.encoding != 'UTF-8':
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
+    
     main() 
 
 

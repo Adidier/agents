@@ -311,6 +311,13 @@ def run_mock_server(host: str = "0.0.0.0", port: int = 8005):
 
 if __name__ == "__main__":
     import argparse
+    import sys
+    import codecs
+    
+    # Forzar codificación UTF-8 para manejar emojis
+    if sys.stdout.encoding != 'UTF-8':
+        sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+        sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
     
     parser = argparse.ArgumentParser(description="Run Mock Weather Server")
     parser.add_argument("--host", default="0.0.0.0", help="Host para el servidor")
