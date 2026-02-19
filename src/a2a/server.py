@@ -9,6 +9,8 @@ import os
 import time
 import requests
 import threading
+import atexit
+import uuid
 from flask import Flask, request, jsonify, Response, stream_with_context
 from typing import Dict, Any, List, Optional, Callable
 
@@ -25,7 +27,8 @@ class A2AServer:
         port: int = 8000,
         endpoint: str = None,
         webhook_url: str = None,
-        iaAlgorithm: IA2AIAAlgorithm = None
+        iaAlgorithm: IA2AIAAlgorithm = None,
+        orchestrator_url: str = None
     ):
         """
         Initialize the A2A server.
@@ -39,19 +42,27 @@ class A2AServer:
             ollama_host: The Ollama host URL
             endpoint: The endpoint where this agent is accessible
             webhook_url: URL to send task status updates to (optional)
+            orchestrator_url: URL of orchestrator registry for auto-registration
         """
         self.port = port
         self.webhook_url = webhook_url
         self.server_thread = None
         self.should_stop = False
+        self.orchestrator_url = orchestrator_url
+        self.agent_id = str(uuid.uuid4())
+        self.registered = False
         
         if endpoint is None:
             endpoint = f"http://localhost:{port}"
         
+        self.endpoint = endpoint
         self.iaAlgorithm = iaAlgorithm
         
         self.app = Flask(__name__)
         self._setup_routes()
+        
+        # Register cleanup on exit
+        atexit.register(self._deregister_on_exit)
     
     def _send_webhook_notification(self, task_id: str, status: str, data: Dict[str, Any]):
         """
@@ -233,10 +244,70 @@ class A2AServer:
             response = self.iaAlgorithm.process_request(request_data)
             return jsonify(response)
     
+    def _register_in_orchestrator(self):
+        """Register this agent in the orchestrator registry."""
+        if not self.orchestrator_url:
+            return
+        
+        try:
+            agent_card = self.iaAlgorithm.agent_card.to_dict()
+            
+            registration_data = {
+                "agent_id": self.agent_id,
+                "name": agent_card['name'],
+                "endpoint": self.endpoint,
+                "skills": agent_card['skills']
+            }
+            
+            response = requests.post(
+                f"{self.orchestrator_url}/register",
+                json=registration_data,
+                timeout=5
+            )
+            
+            if response.status_code == 200:
+                self.registered = True
+                print(f"✅ Agent registered in orchestrator: {agent_card['name']}")
+                print(f"   Orchestrator: {self.orchestrator_url}")
+                print(f"   Agent ID: {self.agent_id}")
+            else:
+                print(f"⚠️  Failed to register in orchestrator: {response.status_code}")
+                
+        except Exception as e:
+            print(f"⚠️  Could not register in orchestrator: {e}")
+    
+    def _deregister_on_exit(self):
+        """Deregister agent when server stops."""
+        if self.registered and self.orchestrator_url:
+            try:
+                requests.post(
+                    f"{self.orchestrator_url}/deregister",
+                    json={"agent_id": self.agent_id},
+                    timeout=5
+                )
+                print(f"✅ Agent {self.agent_id} deregistered from orchestrator")
+            except Exception as e:
+                print(f"⚠️  Error deregistering agent: {e}")
+    
     def _run_server(self):
         """Internal method to run the Flask server."""
         print(f"Starting A2A server on port {self.port}...")
-        self.app.run(host="0.0.0.0", port=self.port, threaded=True)
+        
+        # Start server in a thread to allow registration afterwards
+        def start_flask():
+            self.app.run(host="0.0.0.0", port=self.port, threaded=True)
+        
+        flask_thread = threading.Thread(target=start_flask, daemon=False)
+        flask_thread.start()
+        
+        # Wait for server to start
+        time.sleep(2)
+        
+        # Register in orchestrator after server is running
+        self._register_in_orchestrator()
+        
+        # Keep main thread alive
+        flask_thread.join()
     
     def run(self):
         """Run the A2A server synchronously."""

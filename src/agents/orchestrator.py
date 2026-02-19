@@ -11,8 +11,10 @@ import sys
 import argparse
 import time
 import json
-from datetime import datetime
+import threading
+from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
+from flask import Flask, request, jsonify
 
 # Add the parent directory to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -32,7 +34,8 @@ except ImportError:
 class AgentOrchestrator:
     """
     Orchestrator for coordinating multiple A2A agents.
-    Stores data in local JSON and optionally in MongoDB.
+    Implements dynamic agent discovery similar to JADE's Directory Facilitator.
+    Agents register themselves automatically via REST API.
     """
     
     def __init__(
@@ -40,19 +43,21 @@ class AgentOrchestrator:
         mongodb_uri: Optional[str] = None,
         db_name: str = "solar_energy",
         collection_name: str = "agent_data",
-        **endpoints
+        registry_port: int = 8001,
+        use_dynamic_registry: bool = True
     ):
         """
-        Initialize the orchestrator with dynamic endpoints.
+        Initialize the orchestrator with dynamic agent registry.
         
         Args:
-            mongodb_uri: MongoDB connection string (e.g., mongodb://localhost:27017 or mongodb+srv://...)
+            mongodb_uri: MongoDB connection string
             db_name: MongoDB database name
             collection_name: MongoDB collection name
-            **endpoints: Variable keyword arguments for agent endpoints
-                        (e.g., solar_endpoint="http://localhost:8002")
+            registry_port: Port for the registry REST API
+            use_dynamic_registry: Use dynamic registry or fixed endpoints
         """
         self.clients = {}
+        self.registered_agents = {}  # {agent_id: {endpoint, name, skills, last_heartbeat}}
         self.history = []
         self.mongo_client = None
         self.mongo_collection = None
@@ -60,15 +65,17 @@ class AgentOrchestrator:
         self.db_name = db_name
         self.collection_name = collection_name
         self.mongodb_enabled = False
+        self.registry_port = registry_port
+        self.use_dynamic_registry = use_dynamic_registry
+        self.app = Flask(__name__) if use_dynamic_registry else None
+        self.registry_thread = None
         
-        # Create clients dynamically for each endpoint
-        for name, endpoint in endpoints.items():
-            agent_name = name.replace("_endpoint", "")
-            self.clients[agent_name] = A2AClient(endpoint)
-        
-        # Verify connections and discover capabilities
-        print("Connecting to agents...")
-        self._verify_connections()
+        if use_dynamic_registry:
+            self._setup_registry_routes()
+            self._start_registry_server()
+            print(f"\n📋 Agent Registry Server started on port {registry_port}")
+            print(f"   Registration endpoint: http://localhost:{registry_port}/register")
+            print(f"   Agents should POST to this endpoint to register\n")
         
         # Initialize MongoDB connection if URI provided
         if self.mongodb_uri and PYMONGO_AVAILABLE:
@@ -139,13 +146,191 @@ class AgentOrchestrator:
             print(f"  ⚠️  Error saving to MongoDB: {e}")
             return False
     
+    def _save_registry_to_mongodb(self) -> bool:
+        """
+        Save current agent registry state to MongoDB.
+        Stores a snapshot of all registered agents.
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.mongodb_enabled or self.mongo_client is None:
+            return False
+        
+        try:
+            # Get registry collection
+            db = self.mongo_client[self.db_name]
+            registry_collection = db['agent_registry']
+            
+            # Prepare registry snapshot document
+            agents_snapshot = []
+            # Use list() to avoid RuntimeError if dict changes during iteration
+            for agent_id, info in list(self.registered_agents.items()):
+                agents_snapshot.append({
+                    'agent_id': agent_id,
+                    'name': info['name'],
+                    'endpoint': info['endpoint'],
+                    'skills': info['skills'],
+                    'registered_at': info['registered_at'],
+                    'last_heartbeat': info['last_heartbeat']
+                })
+            
+            document = {
+                "timestamp": datetime.now(),
+                "agents": agents_snapshot,
+                "total_agents": len(self.registered_agents),
+                "registry_port": self.registry_port
+            }
+            
+            # Insert registry snapshot
+            result = registry_collection.insert_one(document)
+            
+            print(f"  💾 Registry snapshot saved to MongoDB (ID: {result.inserted_id})")
+            return True
+            
+        except Exception as e:
+            print(f"  ⚠️  Error saving registry to MongoDB: {e}")
+            return False
+    
+    def _setup_registry_routes(self):
+        """Setup Flask routes for agent registry."""
+        @self.app.route('/register', methods=['POST'])
+        def register_agent():
+            """Endpoint for agents to register themselves."""
+            try:
+                data = request.json
+                agent_id = data.get('agent_id')
+                agent_name = data.get('name')
+                endpoint = data.get('endpoint')
+                skills = data.get('skills', [])
+                
+                if not all([agent_id, agent_name, endpoint]):
+                    return jsonify({"error": "Missing required fields: agent_id, name, endpoint"}), 400
+                
+                self.registered_agents[agent_id] = {
+                    'name': agent_name,
+                    'endpoint': endpoint,
+                    'skills': skills,
+                    'registered_at': datetime.now(),
+                    'last_heartbeat': datetime.now()
+                }
+                
+                # Create A2A client for this agent
+                agent_key = agent_name.lower().replace(' agent', '').replace(' ', '_')
+                self.clients[agent_key] = A2AClient(endpoint)
+                
+                # Save registry to MongoDB
+                self._save_registry_to_mongodb()
+                
+                print(f"✅ Agent registered: {agent_name} ({endpoint})")
+                return jsonify({
+                    "status": "registered",
+                    "agent_id": agent_id,
+                    "message": f"Agent {agent_name} successfully registered"
+                }), 200
+                
+            except Exception as e:
+                print(f"❌ Error registering agent: {e}")
+                return jsonify({"error": str(e)}), 500
+        
+        @self.app.route('/deregister', methods=['POST'])
+        def deregister_agent():
+            """Endpoint for agents to deregister themselves."""
+            try:
+                data = request.json
+                agent_id = data.get('agent_id')
+                
+                if agent_id in self.registered_agents:
+                    agent_info = self.registered_agents[agent_id]
+                    agent_key = agent_info['name'].lower().replace(' agent', '').replace(' ', '_')
+                    
+                    del self.registered_agents[agent_id]
+                    if agent_key in self.clients:
+                        del self.clients[agent_key]
+                    
+                    # Update registry in MongoDB
+                    self._save_registry_to_mongodb()
+                    
+                    print(f"🔴 Agent deregistered: {agent_info['name']}")
+                    return jsonify({"status": "deregistered"}), 200
+                else:
+                    return jsonify({"error": "Agent not found"}), 404
+                    
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+        
+        @self.app.route('/agents', methods=['GET'])
+        def list_agents():
+            """List all registered agents."""
+            # Use list() to avoid RuntimeError if dict changes during iteration
+            agents_list = [
+                {
+                    'agent_id': agent_id,
+                    'name': info['name'],
+                    'endpoint': info['endpoint'],
+                    'skills': info['skills']
+                }
+                for agent_id, info in list(self.registered_agents.items())
+            ]
+            return jsonify({"agents": agents_list, "count": len(agents_list)}), 200
+        
+        @self.app.route('/heartbeat', methods=['POST'])
+        def heartbeat():
+            """Endpoint for agents to send heartbeat."""
+            try:
+                data = request.json
+                agent_id = data.get('agent_id')
+                
+                if agent_id in self.registered_agents:
+                    self.registered_agents[agent_id]['last_heartbeat'] = datetime.now()
+                    return jsonify({"status": "ok"}), 200
+                else:
+                    return jsonify({"error": "Agent not registered"}), 404
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
+    
+    def _start_registry_server(self):
+        """Start the Flask registry server in a separate thread."""
+        def run_server():
+            self.app.run(host='0.0.0.0', port=self.registry_port, threaded=True, use_reloader=False)
+        
+        self.registry_thread = threading.Thread(target=run_server, daemon=True)
+        self.registry_thread.start()
+        time.sleep(1)  # Give server time to start
+    
+    def cleanup_stale_agents(self, timeout_minutes: int = 5):
+        """Remove agents that haven't sent heartbeat recently."""
+        threshold = datetime.now() - timedelta(minutes=timeout_minutes)
+        stale_agents = []
+        
+        # Use list() to avoid RuntimeError if dict changes during iteration
+        for agent_id, info in list(self.registered_agents.items()):
+            if info['last_heartbeat'] < threshold:
+                stale_agents.append(agent_id)
+        
+        for agent_id in stale_agents:
+            agent_info = self.registered_agents[agent_id]
+            print(f"⚠️  Removing stale agent: {agent_info['name']}")
+            agent_key = agent_info['name'].lower().replace(' agent', '').replace(' ', '_')
+            del self.registered_agents[agent_id]
+            if agent_key in self.clients:
+                del self.clients[agent_key]
+    
     def _verify_connections(self):
         """Verify connections to all agents and print their capabilities."""
+        if not self.clients:
+            print("⏳ No agents registered yet. Waiting for agents to register...")
+            return
+            
         try:
-            for agent_name, client in self.clients.items():
-                card = client.discover_agent()
-                print(f"✓ Connected to {agent_name.capitalize()} Agent: {card['name']}")
-                print(f"  Skills: {', '.join(skill['name'] for skill in card['skills'])}")
+            # Use list() to avoid RuntimeError if dict changes during iteration
+            for agent_name, client in list(self.clients.items()):
+                try:
+                    card = client.discover_agent()
+                    print(f"✓ Connected to {agent_name.capitalize()} Agent: {card['name']}")
+                    print(f"  Skills: {', '.join(skill['name'] for skill in card['skills'])}")
+                except Exception as e:
+                    print(f"⚠️  Could not verify {agent_name}: {e}")
         except Exception as e:
             print(f"⚠️  Error verifying connections: {e}")
     
@@ -170,7 +355,8 @@ class AgentOrchestrator:
         raw_responses = {}
         
         # Send requests to all agents dynamically
-        for agent_name, client in self.clients.items():
+        # Use list() to create a copy and avoid RuntimeError if dict changes during iteration
+        for agent_name, client in list(self.clients.items()):
             if agent_name in prompts:
                 prompt = prompts[agent_name]
             else:
@@ -189,45 +375,28 @@ class AgentOrchestrator:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="A2A Multi-Agent Orchestrator with MongoDB")
-    parser.add_argument("--generator-endpoint", type=str, default="http://localhost:8002", help="Generator Agent endpoint")
-    parser.add_argument("--solar-endpoint", type=str, default="http://localhost:8002", help="Solar Agent endpoint")
-    parser.add_argument("--weather-endpoint", type=str, default="http://localhost:8004", help="Weather Agent endpoint")
-    parser.add_argument("--battery-endpoint", type=str, default="http://localhost:8005", help="Battery Agent endpoint")
-    parser.add_argument("--load-endpoint", type=str, default="http://localhost:8006", help="Load Agent endpoint")
-    parser.add_argument("--energy-price-endpoint", type=str, default="http://localhost:8007", help="Energy Price Predictor Agent endpoint")
-    parser.add_argument("--cenace-endpoint", type=str, default=None, help="(Deprecated: use --energy-price-endpoint) CENACE Agent endpoint")
+    parser = argparse.ArgumentParser(description="A2A Multi-Agent Orchestrator with Dynamic Agent Registry")
+    parser.add_argument("--registry-port", type=int, default=8001, help="Port for agent registry server")
     parser.add_argument("--mongodb-uri", type=str, default=None, help="MongoDB connection string (e.g., mongodb://localhost:27017 or mongodb+srv://...)")
     parser.add_argument("--db-name", type=str, default="solar_energy", help="MongoDB database name")
     parser.add_argument("--collection", type=str, default="agent_data", help="MongoDB collection name")
     
     args = parser.parse_args()
     
-    # Handle backwards compatibility for cenace-endpoint
-    if args.cenace_endpoint and not hasattr(args, 'energy_price_endpoint'):
-        args.energy_price_endpoint = args.cenace_endpoint
-    elif args.cenace_endpoint:
-        print("⚠️  Warning: --cenace-endpoint is deprecated, use --energy-price-endpoint")
-        if not args.energy_price_endpoint:
-            args.energy_price_endpoint = args.cenace_endpoint
-    
-    # Dynamically create endpoint arguments
-    endpoints = {}
-    for key, value in vars(args).items():
-        if key.endswith("_endpoint") and value:
-            endpoints[key] = value
-    
-    # Create the orchestrator with dynamic endpoints
+    # Create the orchestrator with dynamic registry
     orchestrator = AgentOrchestrator(
         mongodb_uri=args.mongodb_uri,
         db_name=args.db_name,
         collection_name=args.collection,
-        **endpoints
+        registry_port=args.registry_port,
+        use_dynamic_registry=True
     )
     
     # Continuous monitoring loop
     print("\n" + "="*80)
-    print("🚀 Orchestrator monitoring started")
+    print("🚀 Orchestrator monitoring started (Dynamic Agent Registry)")
+    print(f"📋 Registry API: http://localhost:{args.registry_port}")
+    print(f"   Agents will auto-register at: http://localhost:{args.registry_port}/register")
     if orchestrator.mongodb_enabled:
         print("🗄️  MongoDB:", f"{args.db_name}.{args.collection}")
     else:
@@ -237,12 +406,26 @@ def main():
     print("Press Ctrl+C to stop")
     print("="*80)
     
+    # Wait a bit for agents to register
+    print("\n⏳ Waiting 5 seconds for agents to register...")
+    time.sleep(5)
+    
     try:
         iteration = 0
         while True:
             iteration += 1
             timestamp = datetime.now().isoformat()
-            print(f"\n[{time.strftime('%H:%M:%S')}] Iteration #{iteration}")
+            print(f"\n[{time.strftime('%H:%M:%S')}] Iteration #{iteration} - Active agents: {len(orchestrator.clients)}")
+            
+            # Cleanup stale agents every 10 iterations
+            if iteration % 10 == 0:
+                orchestrator.cleanup_stale_agents()
+            
+            # Skip if no agents registered
+            if not orchestrator.clients:
+                print("  ⏳ No agents registered yet, waiting...")
+                time.sleep(10)
+                continue
             
             # Process and get status from all agents
             responses = orchestrator.process_topic("")

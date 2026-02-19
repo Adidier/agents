@@ -17,6 +17,7 @@ import requests
 from datetime import datetime
 from typing import Dict, Any, Optional
 from pymongo import MongoClient
+from flask import Flask, render_template_string, jsonify, request
 
 # ANSI color codes for terminal output
 class Colors:
@@ -51,7 +52,9 @@ class Dashboard:
         collection_name: str = "agent_data",
         refresh_rate: int = 30,
         ollama_host: str = "http://localhost:11434",
-        ollama_model: str = "llama2:latest"
+        ollama_model: str = "llama2:latest",
+        web_port: int = 5000,
+        orchestrator_url: str = "http://localhost:8001"
     ):
         """
         Inicializa el dashboard.
@@ -63,6 +66,8 @@ class Dashboard:
             refresh_rate: Segundos entre actualizaciones
             ollama_host: URL del servidor Ollama
             ollama_model: Modelo de Ollama a usar
+            web_port: Puerto para el servidor web del dashboard
+            orchestrator_url: URL del orchestrator (para obtener registro de agentes)
         """
         self.mongodb_uri = mongodb_uri
         self.db_name = db_name
@@ -70,6 +75,8 @@ class Dashboard:
         self.refresh_rate = refresh_rate
         self.ollama_host = ollama_host.rstrip("/")
         self.ollama_model = ollama_model
+        self.web_port = web_port
+        self.orchestrator_url = orchestrator_url.rstrip("/")
         self.last_data = None
         
         # Queue para manejar preguntas del usuario
@@ -77,6 +84,11 @@ class Dashboard:
         self.answer_queue = queue.Queue()
         self.chat_active = False
         self.stop_threads = False
+        
+        # Flask app para web dashboard
+        self.app = Flask(__name__)
+        self._setup_flask_routes()
+        self.web_thread = None
         
         # Inicializar MongoDB
         self._init_mongodb()
@@ -105,6 +117,677 @@ class Dashboard:
         except Exception as e:
             print(f"{Colors.RED}❌ Error al conectar a MongoDB: {e}{Colors.RESET}")
             sys.exit(1)
+    
+    def _setup_flask_routes(self):
+        """Configura las rutas Flask para el dashboard web."""
+        
+        @self.app.route('/')
+        def index():
+            """Página principal del dashboard."""
+            html_template = """
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Agent Registry Dashboard</title>
+                <style>
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }
+                    
+                    body {
+                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        min-height: 100vh;
+                        padding: 20px;
+                    }
+                    
+                    .container {
+                        max-width: 1400px;
+                        margin: 0 auto;
+                    }
+                    
+                    .header {
+                        text-align: center;
+                        color: white;
+                        margin-bottom: 30px;
+                    }
+                    
+                    .header h1 {
+                        font-size: 2.5em;
+                        margin-bottom: 10px;
+                        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                    }
+                    
+                    .header p {
+                        font-size: 1.2em;
+                        opacity: 0.9;
+                    }
+                    
+                    .stats {
+                        display: flex;
+                        gap: 20px;
+                        margin-bottom: 30px;
+                        flex-wrap: wrap;
+                    }
+                    
+                    .stat-card {
+                        flex: 1;
+                        min-width: 200px;
+                        background: white;
+                        padding: 20px;
+                        border-radius: 10px;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                    }
+                    
+                    .stat-card h3 {
+                        color: #667eea;
+                        font-size: 0.9em;
+                        text-transform: uppercase;
+                        margin-bottom: 10px;
+                    }
+                    
+                    .stat-card .value {
+                        font-size: 2em;
+                        font-weight: bold;
+                        color: #333;
+                    }
+                    
+                    .diagram-container {
+                        background: white;
+                        border-radius: 15px;
+                        padding: 30px;
+                        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+                        margin-bottom: 30px;
+                    }
+                    
+                    .diagram-title {
+                        font-size: 1.8em;
+                        color: #333;
+                        margin-bottom: 30px;
+                        text-align: center;
+                    }
+                    
+                    .architecture-diagram {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: 30px;
+                    }
+                    
+                    .orchestrator-node {
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 25px 40px;
+                        border-radius: 15px;
+                        box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+                        text-align: center;
+                        min-width: 250px;
+                    }
+                    
+                    .orchestrator-node h3 {
+                        font-size: 1.5em;
+                        margin-bottom: 5px;
+                    }
+                    
+                    .orchestrator-node .port {
+                        font-size: 0.9em;
+                        opacity: 0.9;
+                    }
+                    
+                    .connection-line {
+                        width: 2px;
+                        height: 40px;
+                        background: linear-gradient(to bottom, #667eea, #764ba2);
+                        position: relative;
+                    }
+                    
+                    .connection-line::before {
+                        content: '↕';
+                        position: absolute;
+                        top: 50%;
+                        left: 50%;
+                        transform: translate(-50%, -50%);
+                        background: white;
+                        padding: 2px 5px;
+                        border-radius: 3px;
+                        font-size: 0.8em;
+                    }
+                    
+                    .agents-grid {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                        gap: 20px;
+                        width: 100%;
+                    }
+                    
+                    .agent-node {
+                        background: white;
+                        border: 3px solid #667eea;
+                        border-radius: 10px;
+                        padding: 20px;
+                        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                        transition: transform 0.3s, box-shadow 0.3s;
+                    }
+                    
+                    .agent-node:hover {
+                        transform: translateY(-5px);
+                        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+                    }
+                    
+                    .agent-node h4 {
+                        color: #667eea;
+                        font-size: 1.3em;
+                        margin-bottom: 10px;
+                    }
+                    
+                    .agent-info {
+                        font-size: 0.9em;
+                        color: #666;
+                        line-height: 1.6;
+                    }
+                    
+                    .agent-info strong {
+                        color: #333;
+                    }
+                    
+                    .skills-list {
+                        margin-top: 10px;
+                        padding-top: 10px;
+                        border-top: 1px solid #eee;
+                    }
+                    
+                    .skill-tag {
+                        display: inline-block;
+                        background: #f0f0f0;
+                        padding: 3px 8px;
+                        border-radius: 5px;
+                        font-size: 0.8em;
+                        margin: 2px;
+                    }
+                    
+                    .no-agents {
+                        text-align: center;
+                        padding: 40px;
+                        color: #999;
+                        font-size: 1.2em;
+                    }
+                    
+                    .refresh-btn {
+                        position: fixed;
+                        bottom: 30px;
+                        right: 30px;
+                        background: #667eea;
+                        color: white;
+                        border: none;
+                        padding: 15px 25px;
+                        border-radius: 50px;
+                        font-size: 1em;
+                        cursor: pointer;
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                        transition: background 0.3s;
+                    }
+                    
+                    .refresh-btn:hover {
+                        background: #764ba2;
+                    }
+                    
+                    .error-message {
+                        background: #ff4444;
+                        color: white;
+                        padding: 15px;
+                        border-radius: 8px;
+                        margin-bottom: 20px;
+                        text-align: center;
+                    }
+                    
+                    .chat-container {
+                        background: white;
+                        border-radius: 15px;
+                        padding: 30px;
+                        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+                        margin-bottom: 30px;
+                        max-width: 1400px;
+                        margin-left: auto;
+                        margin-right: auto;
+                    }
+                    
+                    .chat-title {
+                        font-size: 1.8em;
+                        color: #333;
+                        margin-bottom: 20px;
+                        text-align: center;
+                    }
+                    
+                    .chat-messages {
+                        height: 400px;
+                        overflow-y: auto;
+                        border: 2px solid #e0e0e0;
+                        border-radius: 10px;
+                        padding: 20px;
+                        margin-bottom: 20px;
+                        background: #f9f9f9;
+                    }
+                    
+                    .chat-message {
+                        margin-bottom: 15px;
+                        padding: 12px 15px;
+                        border-radius: 8px;
+                        max-width: 80%;
+                        word-wrap: break-word;
+                    }
+                    
+                    .chat-message.user {
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        margin-left: auto;
+                        text-align: right;
+                    }
+                    
+                    .chat-message.assistant {
+                        background: white;
+                        border: 2px solid #667eea;
+                        color: #333;
+                        margin-right: auto;
+                    }
+                    
+                    .chat-message .message-header {
+                        font-weight: bold;
+                        margin-bottom: 5px;
+                        font-size: 0.9em;
+                        opacity: 0.8;
+                    }
+                    
+                    .chat-input-container {
+                        display: flex;
+                        gap: 10px;
+                    }
+                    
+                    .chat-input {
+                        flex: 1;
+                        padding: 15px;
+                        border: 2px solid #667eea;
+                        border-radius: 10px;
+                        font-size: 1em;
+                        font-family: inherit;
+                        resize: vertical;
+                        min-height: 60px;
+                    }
+                    
+                    .chat-input:focus {
+                        outline: none;
+                        border-color: #764ba2;
+                        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+                    }
+                    
+                    .chat-send-btn {
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        border: none;
+                        padding: 15px 30px;
+                        border-radius: 10px;
+                        font-size: 1em;
+                        cursor: pointer;
+                        transition: transform 0.2s, box-shadow 0.2s;
+                        font-weight: bold;
+                    }
+                    
+                    .chat-send-btn:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 6px 15px rgba(102, 126, 234, 0.4);
+                    }
+                    
+                    .chat-send-btn:active {
+                        transform: translateY(0);
+                    }
+                    
+                    .chat-send-btn:disabled {
+                        opacity: 0.6;
+                        cursor: not-allowed;
+                        transform: none;
+                    }
+                    
+                    .typing-indicator {
+                        display: none;
+                        padding: 10px;
+                        color: #667eea;
+                        font-style: italic;
+                    }
+                    
+                    .typing-indicator.active {
+                        display: block;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>🌐 Agent Registry Dashboard</h1>
+                        <p>Multi-Agent System Architecture</p>
+                    </div>
+                    
+                    <div class="stats" id="stats">
+                        <div class="stat-card">
+                            <h3>Total Agents</h3>
+                            <div class="value" id="total-agents">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Orchestrator Port</h3>
+                            <div class="value" id="orchestrator-port">-</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Last Update</h3>
+                            <div class="value" id="last-update" style="font-size: 1.2em;">-</div>
+                        </div>
+                    </div>
+                    
+                    <div id="error-container"></div>
+                    
+                    <div class="diagram-container">
+                        <h2 class="diagram-title">System Architecture</h2>
+                        <div class="architecture-diagram">
+                            <div class="orchestrator-node">
+                                <h3>🎯 Orchestrator</h3>
+                                <p class="port">Registry Server</p>
+                                <p class="port" id="orch-port">Port: 8001</p>
+                            </div>
+                            
+                            <div class="connection-line"></div>
+                            
+                            <div class="agents-grid" id="agents-container">
+                                <div class="no-agents">Loading agents...</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="chat-container">
+                        <h2 class="chat-title">💬 Chat with AI Assistant</h2>
+                        <div class="chat-messages" id="chat-messages">
+                            <div class="chat-message assistant">
+                                <div class="message-header">🤖 AI Assistant</div>
+                                <div>Hello! I can help you understand the agent system data. Ask me anything about the registered agents, their status, or system architecture.</div>
+                            </div>
+                        </div>
+                        <div class="typing-indicator" id="typing-indicator">🤖 AI is thinking...</div>
+                        <div class="chat-input-container">
+                            <textarea 
+                                id="chat-input" 
+                                class="chat-input" 
+                                placeholder="Ask a question about the system (e.g., 'How many agents are registered?', 'What can the Solar Generator do?')"
+                                rows="3"
+                            ></textarea>
+                            <button class="chat-send-btn" id="chat-send-btn" onclick="sendMessage()">
+                                📤 Send
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <button class="refresh-btn" onclick="loadAgents()">🔄 Refresh</button>
+                
+                <script>
+                    async function loadAgents() {
+                        try {
+                            const response = await fetch('/api/agents');
+                            const data = await response.json();
+                            
+                            document.getElementById('error-container').innerHTML = '';
+                            
+                            if (data.error) {
+                                document.getElementById('error-container').innerHTML = 
+                                    `<div class="error-message">⚠️ ${data.error}</div>`;
+                                return;
+                            }
+                            
+                            // Update stats
+                            document.getElementById('total-agents').textContent = data.count || 0;
+                            document.getElementById('orchestrator-port').textContent = data.registry_port || '8001';
+                            document.getElementById('last-update').textContent = 
+                                new Date().toLocaleTimeString();
+                            
+                            // Update agents grid
+                            const container = document.getElementById('agents-container');
+                            
+                            if (!data.agents || data.agents.length === 0) {
+                                container.innerHTML = '<div class="no-agents">No agents registered</div>';
+                                return;
+                            }
+                            
+                            container.innerHTML = data.agents.map(agent => `
+                                <div class="agent-node">
+                                    <h4>🤖 ${agent.name}</h4>
+                                    <div class="agent-info">
+                                        <p><strong>ID:</strong> ${agent.agent_id.substring(0, 8)}...</p>
+                                        <p><strong>Endpoint:</strong> ${agent.endpoint}</p>
+                                        ${agent.skills && agent.skills.length > 0 ? `
+                                            <div class="skills-list">
+                                                <strong>Skills:</strong><br>
+                                                ${agent.skills.map(skill => 
+                                                    `<span class="skill-tag">${typeof skill === 'object' ? (skill.name || skill.id || JSON.stringify(skill)) : skill}</span>`
+                                                ).join('')}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `).join('');
+                            
+                        } catch (error) {
+                            document.getElementById('error-container').innerHTML = 
+                                `<div class="error-message">❌ Error loading agents: ${error.message}</div>`;
+                            console.error('Error loading agents:', error);
+                        }
+                    }
+                    
+                    // Load agents on page load
+                    loadAgents();
+                    
+                    // Auto-refresh every 10 seconds
+                    setInterval(loadAgents, 10000);
+                    
+                    // Chat functionality
+                    async function sendMessage() {
+                        const input = document.getElementById('chat-input');
+                        const sendBtn = document.getElementById('chat-send-btn');
+                        const messagesContainer = document.getElementById('chat-messages');
+                        const typingIndicator = document.getElementById('typing-indicator');
+                        
+                        const question = input.value.trim();
+                        if (!question) return;
+                        
+                        // Disable input and button
+                        input.disabled = true;
+                        sendBtn.disabled = true;
+                        
+                        // Add user message
+                        const userMessage = document.createElement('div');
+                        userMessage.className = 'chat-message user';
+                        userMessage.innerHTML = `
+                            <div class="message-header">👤 You</div>
+                            <div>${escapeHtml(question)}</div>
+                        `;
+                        messagesContainer.appendChild(userMessage);
+                        
+                        // Clear input
+                        input.value = '';
+                        
+                        // Show typing indicator
+                        typingIndicator.classList.add('active');
+                        
+                        // Scroll to bottom
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        
+                        try {
+                            const response = await fetch('/api/chat', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ question: question })
+                            });
+                            
+                            const data = await response.json();
+                            
+                            // Hide typing indicator
+                            typingIndicator.classList.remove('active');
+                            
+                            if (data.error) {
+                                throw new Error(data.error);
+                            }
+                            
+                            // Add assistant response
+                            const assistantMessage = document.createElement('div');
+                            assistantMessage.className = 'chat-message assistant';
+                            assistantMessage.innerHTML = `
+                                <div class="message-header">🤖 AI Assistant</div>
+                                <div>${escapeHtml(data.answer)}</div>
+                            `;
+                            messagesContainer.appendChild(assistantMessage);
+                            
+                        } catch (error) {
+                            typingIndicator.classList.remove('active');
+                            
+                            const errorMessage = document.createElement('div');
+                            errorMessage.className = 'chat-message assistant';
+                            errorMessage.innerHTML = `
+                                <div class="message-header">⚠️ Error</div>
+                                <div>Sorry, I couldn't process your question: ${escapeHtml(error.message)}</div>
+                            `;
+                            messagesContainer.appendChild(errorMessage);
+                        }
+                        
+                        // Re-enable input and button
+                        input.disabled = false;
+                        sendBtn.disabled = false;
+                        input.focus();
+                        
+                        // Scroll to bottom
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                    
+                    // Handle Enter key in textarea (Shift+Enter for new line)
+                    document.getElementById('chat-input').addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            sendMessage();
+                        }
+                    });
+                    
+                    // Escape HTML to prevent XSS
+                    function escapeHtml(text) {
+                        const div = document.createElement('div');
+                        div.textContent = text;
+                        return div.innerHTML;
+                    }
+                </script>
+            </body>
+            </html>
+            """
+            return render_template_string(html_template)
+        
+        @self.app.route('/api/agents')
+        def api_agents():
+            """API endpoint para obtener la lista de agentes registrados."""
+            try:
+                # Primero intentar obtener del orchestrator
+                response = requests.get(f"{self.orchestrator_url}/agents", timeout=2)
+                if response.status_code == 200:
+                    data = response.json()
+                    data['registry_port'] = self.orchestrator_url.split(':')[-1]
+                    return jsonify(data)
+            except Exception as e:
+                # Si falla, intentar leer desde MongoDB
+                try:
+                    db = self.mongo_client[self.db_name]
+                    registry_collection = db['agent_registry']
+                    
+                    # Obtener el snapshot más reciente
+                    latest = registry_collection.find_one(sort=[("timestamp", -1)])
+                    
+                    if latest:
+                        return jsonify({
+                            "agents": latest.get('agents', []),
+                            "count": latest.get('total_agents', 0),
+                            "registry_port": latest.get('registry_port', '8001'),
+                            "source": "mongodb"
+                        })
+                except Exception as mongo_error:
+                    pass
+            
+            return jsonify({
+                "error": "Could not fetch agents from orchestrator or MongoDB",
+                "agents": [],
+                "count": 0
+            })
+        
+        @self.app.route('/api/chat', methods=['POST'])
+        def api_chat():
+            """API endpoint para chat con el LLM usando datos del sistema."""
+            try:
+                data = request.json
+                question = data.get('question', '')
+                
+                if not question:
+                    return jsonify({"error": "No question provided"}), 400
+                
+                # Get context about registered agents
+                try:
+                    response = requests.get(f"{self.orchestrator_url}/agents", timeout=2)
+                    if response.status_code == 200:
+                        agents_data = response.json()
+                        agent_list = agents_data.get('agents', [])
+                        
+                        # Build context
+                        context_parts = ["Current System Status:\n"]
+                        context_parts.append(f"- Total Agents Registered: {len(agent_list)}\n")
+                        
+                        for agent in agent_list:
+                            context_parts.append(f"\nAgent: {agent['name']}")
+                            context_parts.append(f"  Endpoint: {agent['endpoint']}")
+                            if agent.get('skills'):
+                                skills_names = []
+                                for skill in agent['skills']:
+                                    if isinstance(skill, dict):
+                                        skills_names.append(skill.get('name', skill.get('id', str(skill))))
+                                    else:
+                                        skills_names.append(str(skill))
+                                context_parts.append(f"  Skills: {', '.join(skills_names)}")
+                        
+                        context = "\n".join(context_parts)
+                    else:
+                        context = "Could not retrieve current agent data from orchestrator."
+                except Exception as e:
+                    context = f"Error retrieving agent data: {str(e)}"
+                
+                # Get monitoring data context
+                try:
+                    monitoring_data = self.read_mongodb_data()
+                    if monitoring_data and monitoring_data.get('history'):
+                        latest = monitoring_data['history'][-1]
+                        context += f"\n\nLatest Monitoring Data (Iteration #{latest.get('iteration')}):\n"
+                        for agent_name, agent_data in latest.get('agents', {}).items():
+                            context += f"\n{agent_name.upper()}:\n"
+                            if isinstance(agent_data, dict):
+                                content = agent_data.get('content', str(agent_data))
+                                # Limit content length
+                                if len(content) > 500:
+                                    content = content[:500] + "..."
+                                context += f"  {content}\n"
+                except Exception as e:
+                    pass
+                
+                # Call Ollama
+                answer = self.ask_ollama(question, context)
+                
+                return jsonify({
+                    "answer": answer,
+                    "context_used": len(context) > 0
+                })
+                
+            except Exception as e:
+                return jsonify({"error": str(e)}), 500
     
     def read_mongodb_data(self) -> Optional[Dict[str, Any]]:
         """
@@ -255,26 +938,29 @@ class Dashboard:
         
         return "\n".join(context_parts)
     
-    def ask_ollama(self, question: str) -> str:
+    def ask_ollama(self, question: str, context: str = None) -> str:
         """
         Hace una pregunta a Ollama con el contexto de los datos actuales.
         
         Args:
             question: Pregunta del usuario
+            context: Contexto opcional (si no se proporciona, se obtiene automáticamente)
             
         Returns:
             Respuesta del LLM
         """
         try:
-            # Obtener contexto de los datos
-            context = self.get_context_for_llm()
+            # Obtener contexto de los datos si no se proporciona
+            if context is None:
+                context = self.get_context_for_llm()
             
-            # Imprimir el contexto
-            print(f"\n{Colors.MAGENTA}{'─' * 80}{Colors.RESET}")
-            print(f"{Colors.MAGENTA}{Colors.BOLD}📋 CONTEXTO ENVIADO A OLLAMA:{Colors.RESET}")
-            print(f"{Colors.MAGENTA}{'─' * 80}{Colors.RESET}")
-            print(f"{Colors.WHITE}{context}{Colors.RESET}")
-            print(f"{Colors.MAGENTA}{'─' * 80}{Colors.RESET}\n")
+            # Imprimir el contexto (solo en terminal, no en web)
+            if context == self.get_context_for_llm():
+                print(f"\n{Colors.MAGENTA}{'─' * 80}{Colors.RESET}")
+                print(f"{Colors.MAGENTA}{Colors.BOLD}📋 CONTEXTO ENVIADO A OLLAMA:{Colors.RESET}")
+                print(f"{Colors.MAGENTA}{'─' * 80}{Colors.RESET}")
+                print(f"{Colors.WHITE}{context}{Colors.RESET}")
+                print(f"{Colors.MAGENTA}{'─' * 80}{Colors.RESET}\n")
             
             # Preparar el prompt con contexto
             prompt = f"""Eres un asistente experto en sistemas de energía solar y monitoreo de sistemas multi-agente.
@@ -534,6 +1220,15 @@ Proporciona una respuesta clara y concisa basada en los datos mostrados arriba."
         print(f"\n{Colors.BOLD}{Colors.BLUE}{'═' * 80}{Colors.RESET}")
         print(f"{Colors.CYAN}🔄 Actualizando cada {self.refresh_rate} segundos... (Ctrl+C para salir){Colors.RESET}")
     
+    def _start_web_server(self):
+        """Inicia el servidor web Flask en un thread separado."""
+        def run_flask():
+            self.app.run(host='0.0.0.0', port=self.web_port, debug=False, use_reloader=False)
+        
+        self.web_thread = threading.Thread(target=run_flask, daemon=True)
+        self.web_thread.start()
+        print(f"{Colors.GREEN}🌐 Web Dashboard started on http://localhost:{self.web_port}{Colors.RESET}")
+    
     def run(self):
         """Ejecuta el dashboard en modo continuo con chat interactivo."""
         print(f"{Colors.BOLD}{Colors.GREEN}Dashboard Agent iniciado{Colors.RESET}")
@@ -541,6 +1236,9 @@ Proporciona una respuesta clara y concisa basada en los datos mostrados arriba."
         print(f"Tasa de actualización: {self.refresh_rate} segundos")
         print(f"Modelo Ollama: {self.ollama_model} @ {self.ollama_host}")
         print(f"\n{Colors.CYAN}💡 Puedes hacer preguntas sobre los datos en cualquier momento{Colors.RESET}\n")
+        
+        # Iniciar servidor web
+        self._start_web_server()
         
         # Iniciar thread de input
         input_thread = threading.Thread(target=self.input_thread_func, daemon=True)
@@ -625,6 +1323,18 @@ def main():
         default="deepseek-r1:1.5b",
         help="Ollama model to use (default:deepseek-r1:1.5b)"
     )
+    parser.add_argument(
+        "--web-port",
+        type=int,
+        default=5000,
+        help="Web dashboard port (default: 5000)"
+    )
+    parser.add_argument(
+        "--orchestrator-url",
+        type=str,
+        default="http://localhost:8001",
+        help="Orchestrator URL for agent registry (default: http://localhost:8001)"
+    )
     
     args = parser.parse_args()
     
@@ -635,7 +1345,9 @@ def main():
         collection_name=args.collection,
         refresh_rate=args.refresh,
         ollama_host=args.ollama_host,
-        ollama_model=args.ollama_model
+        ollama_model=args.ollama_model,
+        web_port=args.web_port,
+        orchestrator_url=args.orchestrator_url
     )
     dashboard.run()
 

@@ -413,6 +413,7 @@ def main():
     parser.add_argument("--mock", action="store_true", help="Usar servidor mock en lugar de NASA API")
     parser.add_argument("--mock-url", default="http://localhost:8005/api/temporal/daily/point", 
                         help="URL del servidor mock")
+    parser.add_argument("--orchestrator-url", type=str, default="http://localhost:8001", help="Orchestrator registry URL for auto-registration")
     
     args = parser.parse_args()
     
@@ -435,7 +436,8 @@ def main():
     # Iniciar el servidor A2A
     run_server(
         port=args.port,
-        iaAlgorithm=weather_agent
+        iaAlgorithm=weather_agent,
+        orchestrator_url=args.orchestrator_url
     )
 
 

@@ -515,6 +515,7 @@ def main():
     parser.add_argument("--port", type=int, default=8005, help="Puerto del servidor")
     parser.add_argument("--soc", type=float, default=50.0, help="Estado de carga inicial (%)")
     parser.add_argument("--capacity", type=float, default=10.0, help="Capacidad de la batería (kWh)")
+    parser.add_argument("--orchestrator-url", type=str, default="http://localhost:8001", help="Orchestrator registry URL for auto-registration")
     
     args = parser.parse_args()
     
@@ -536,7 +537,8 @@ def main():
     # Iniciar el servidor A2A
     run_server(
         port=args.port,
-        iaAlgorithm=battery_agent
+        iaAlgorithm=battery_agent,
+        orchestrator_url=args.orchestrator_url
     )
 
 

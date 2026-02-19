@@ -704,6 +704,7 @@ def main():
                        help="Perfil de consumo")
     parser.add_argument("--base-load", type=float, default=1.0, 
                        help="Carga base en kW")
+    parser.add_argument("--orchestrator-url", type=str, default="http://localhost:8001", help="Orchestrator registry URL for auto-registration")
     
     args = parser.parse_args()
     
@@ -725,7 +726,8 @@ def main():
     # Iniciar el servidor A2A
     run_server(
         port=args.port,
-        iaAlgorithm=load_agent
+        iaAlgorithm=load_agent,
+        orchestrator_url=args.orchestrator_url
     )
 
 

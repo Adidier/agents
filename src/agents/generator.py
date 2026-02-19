@@ -40,13 +40,14 @@ def main():
     parser.add_argument("--ollama-host", type=str, default="http://localhost:11434", help="The Ollama host URL")
     parser.add_argument("--auto-simulate", action="store_true", default=True, help="Auto-simulate real power for supervision")
     parser.add_argument("--no-simulate", dest="auto_simulate", action="store_false", help="Disable auto-simulation")
+    parser.add_argument("--orchestrator-url", type=str, default="http://localhost:8001", help="Orchestrator registry URL for auto-registration")
     
     args = parser.parse_args()
     
     # Create the solar expert system agent
     solar_agent = A2ALSTM(
         model=args.model,
-        name="Solar Agent",
+        name="Solar Generator Agent",
         skills=skills,
         description="An A2A agent that specializes in providing solar information and forecasts",
         host=args.ollama_host,
@@ -70,7 +71,8 @@ def main():
     # Start the A2A server with the Solar Agent
     run_server(
         port=args.port,
-        iaAlgorithm=solar_agent
+        iaAlgorithm=solar_agent,
+        orchestrator_url=args.orchestrator_url
     )
 
 

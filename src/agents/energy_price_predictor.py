@@ -577,6 +577,7 @@ def main():
     parser.add_argument("--sistema", type=str, default="SIN", help="Sistema (SIN/BCA/BCS)")
     parser.add_argument("--mercado", type=str, default="MDA", help="Mercado (MDA/MTR)")
     parser.add_argument("--nodo", type=str, default="06MTY-115", help="Nodo de precio")
+    parser.add_argument("--orchestrator-url", type=str, default="http://localhost:8001", help="Orchestrator registry URL for auto-registration")
     
     args = parser.parse_args()
     
@@ -591,7 +592,7 @@ def main():
     )
     
     # Create A2A server with the Energy Price Predictor agent as iaAlgorithm
-    server = A2AServer(port=args.port, iaAlgorithm=price_predictor_agent)
+    server = A2AServer(port=args.port, iaAlgorithm=price_predictor_agent, orchestrator_url=args.orchestrator_url)
     
     # Start server
     print(f"\n{'='*80}")
