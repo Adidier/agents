@@ -460,7 +460,208 @@ class Dashboard:
                     .typing-indicator.active {
                         display: block;
                     }
+                    
+                    /* Modal styles for agent JSON */
+                    .modal {
+                        display: none;
+                        position: fixed;
+                        z-index: 1000;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        height: 100%;
+                        background-color: rgba(0, 0, 0, 0.6);
+                        backdrop-filter: blur(5px);
+                    }
+                    
+                    .modal-content {
+                        background: white;
+                        margin: 3% auto;
+                        padding: 0;
+                        border-radius: 15px;
+                        width: 90%;
+                        max-width: 900px;
+                        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+                        max-height: 90vh;
+                        overflow: hidden;
+                        display: flex;
+                        flex-direction: column;
+                    }
+                    
+                    .modal-header {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        padding: 25px 30px;
+                        border-bottom: 3px solid #667eea;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                    }
+                    
+                    .modal-header h2 {
+                        margin: 0;
+                        font-size: 1.8em;
+                    }
+                    
+                    .close-btn {
+                        background: rgba(255,255,255,0.2);
+                        border: none;
+                        font-size: 1.8em;
+                        color: white;
+                        cursor: pointer;
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 50%;
+                        transition: background 0.3s;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+                    
+                    .close-btn:hover {
+                        background: rgba(255,255,255,0.3);
+                    }
+                    
+                    .modal-body {
+                        padding: 30px;
+                        overflow-y: auto;
+                        flex: 1;
+                    }
+                    
+                    .modal-body pre {
+                        background: #f5f5f5;
+                        padding: 20px;
+                        border-radius: 10px;
+                        overflow-x: auto;
+                        border-left: 5px solid #667eea;
+                        margin: 0;
+                        font-family: 'Courier New', monospace;
+                        font-size: 0.95em;
+                        line-height: 1.6;
+                        color: #333;
+                        white-space: pre-wrap;
+                        word-wrap: break-word;
+                    }
+                    
+                    .agent-node {
+                        cursor: pointer;
+                    }
+                    
+                    /* Result display styles */
+                    .result-section {
+                        margin-bottom: 25px;
+                    }
+                    
+                    .result-header {
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        padding: 12px 20px;
+                        border-radius: 8px;
+                        font-weight: bold;
+                        margin-bottom: 15px;
+                        font-size: 1.1em;
+                    }
+                    
+                    .result-content {
+                        background: #f9f9f9;
+                        padding: 20px;
+                        border-radius: 8px;
+                        border-left: 4px solid #667eea;
+                    }
+                    
+                    .result-item {
+                        margin-bottom: 12px;
+                        padding: 10px;
+                        background: white;
+                        border-radius: 6px;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                    }
+                    
+                    .result-label {
+                        color: #667eea;
+                        font-weight: bold;
+                        margin-bottom: 5px;
+                        font-size: 0.95em;
+                    }
+                    
+                    .result-value {
+                        color: #333;
+                        font-size: 1.1em;
+                        word-wrap: break-word;
+                    }
+                    
+                    .metadata-section {
+                        background: #e8eaf6;
+                        padding: 15px;
+                        border-radius: 8px;
+                        margin-top: 20px;
+                        font-size: 0.9em;
+                        color: #555;
+                    }
+                    
+                    .json-raw {
+                        background: #2d2d2d;
+                        color: #f8f8f2;
+                        padding: 15px;
+                        border-radius: 8px;
+                        overflow-x: auto;
+                        font-family: 'Courier New', monospace;
+                        font-size: 0.85em;
+                        margin-top: 20px;
+                    }
+                    
+                    .toggle-json {
+                        background: #667eea;
+                        color: white;
+                        border: none;
+                        padding: 8px 15px;
+                        border-radius: 5px;
+                        cursor: pointer;
+                        font-size: 0.9em;
+                        margin-top: 15px;
+                        transition: background 0.3s;
+                    }
+                    
+                    .toggle-json:hover {
+                        background: #764ba2;
+                    }
+                    
+                    /* System Architecture Diagram */
+                    .system-diagram {
+                        background: white;
+                        border-radius: 15px;
+                        padding: 30px;
+                        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+                        margin-bottom: 30px;
+                    }
+                    
+                    .system-diagram h2 {
+                        font-size: 1.8em;
+                        color: #333;
+                        margin-bottom: 20px;
+                        text-align: center;
+                    }
+                    
+                    .mermaid {
+                        display: flex;
+                        justify-content: center;
+                    }
                 </style>
+                <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+                <script>
+                    mermaid.initialize({ 
+                        startOnLoad: true,
+                        theme: 'default',
+                        themeVariables: {
+                            primaryColor: '#667eea',
+                            primaryTextColor: '#fff',
+                            primaryBorderColor: '#764ba2',
+                            lineColor: '#667eea',
+                            secondaryColor: '#764ba2',
+                            tertiaryColor: '#f0f0f0'
+                        }
+                    });
+                </script>
             </head>
             <body>
                 <div class="container">
@@ -485,6 +686,71 @@ class Dashboard:
                     </div>
                     
                     <div id="error-container"></div>
+                    
+                    <!-- System Architecture Diagram -->
+                    <div class="system-diagram">
+                        <h2>🏛️ Complete System Architecture</h2>
+                        <div class="mermaid">
+                            graph TB
+                                subgraph "Data Storage Layer"
+                                    MongoDB[(MongoDB<br/>Database<br/>solar_energy)]
+                                    AgentData[(agent_data<br/>Collection)]
+                                    AgentRegistry[(agent_registry<br/>Collection)]
+                                    MongoDB --> AgentData
+                                    MongoDB --> AgentRegistry
+                                end
+                                
+                                subgraph "Orchestration Layer"
+                                    Orchestrator[🎯 Orchestrator<br/>Port: 8001<br/>Registry Server]
+                                    Orchestrator -->|Stores monitoring data| AgentData
+                                    Orchestrator -->|Stores registry snapshots| AgentRegistry
+                                end
+                                
+                                subgraph "Agent Layer - Multi-Agent System"
+                                    Generator[☀️ Solar Generator Agent<br/>Port: 5001<br/>LSTM Predictions]
+                                    Weather[🌦️ Weather Agent<br/>Port: 5002<br/>Temperature & Radiation]
+                                    Battery[🔋 Battery Agent<br/>Port: 5003<br/>SoC & Power Flow]
+                                    Load[🏠 Load Agent<br/>Port: 5004<br/>Consumption Forecast]
+                                    EnergyPrice[💰 Energy Price Agent<br/>Port: 5005<br/>CENACE Price Prediction]
+                                end
+                                
+                                subgraph "Visualization Layer"
+                                    Dashboard[📊 Dashboard<br/>Port: 5000<br/>Real-time Monitoring]
+                                end
+                                
+                                subgraph "AI Services"
+                                    Ollama[🤖 Ollama LLM<br/>Port: 11434<br/>deepseek-r1:1.5b]
+                                end
+                                
+                                Generator -->|Registers| Orchestrator
+                                Weather -->|Registers| Orchestrator
+                                Battery -->|Registers| Orchestrator
+                                Load -->|Registers| Orchestrator
+                                EnergyPrice -->|Registers| Orchestrator
+                                
+                                Orchestrator -->|Queries every 10s| Generator
+                                Orchestrator -->|Queries every 10s| Weather
+                                Orchestrator -->|Queries every 10s| Battery
+                                Orchestrator -->|Queries every 10s| Load
+                                Orchestrator -->|Queries every 10s| EnergyPrice
+                                
+                                Dashboard -->|Reads agent registry| Orchestrator
+                                Dashboard -->|Reads monitoring data| MongoDB
+                                Dashboard -->|Chat queries| Ollama
+                                
+                                style MongoDB fill:#47a047,stroke:#2d5f2d,stroke-width:3px,color:#fff
+                                style AgentData fill:#5a9f5a,stroke:#2d5f2d,stroke-width:2px,color:#fff
+                                style AgentRegistry fill:#5a9f5a,stroke:#2d5f2d,stroke-width:2px,color:#fff
+                                style Orchestrator fill:#667eea,stroke:#764ba2,stroke-width:4px,color:#fff
+                                style Generator fill:#ffd700,stroke:#e6b800,stroke-width:3px,color:#333
+                                style Weather fill:#87ceeb,stroke:#4da6d6,stroke-width:3px,color:#333
+                                style Battery fill:#90ee90,stroke:#5cb85c,stroke-width:3px,color:#333
+                                style Load fill:#ff6b6b,stroke:#d63031,stroke-width:3px,color:#fff
+                                style EnergyPrice fill:#9b59b6,stroke:#6c3483,stroke-width:3px,color:#fff
+                                style Dashboard fill:#764ba2,stroke:#667eea,stroke-width:4px,color:#fff
+                                style Ollama fill:#ff9f43,stroke:#ee5a24,stroke-width:3px,color:#fff
+                        </div>
+                    </div>
                     
                     <div class="diagram-container">
                         <h2 class="diagram-title">System Architecture</h2>
@@ -526,6 +792,19 @@ class Dashboard:
                     </div>
                 </div>
                 
+                <!-- Agent JSON Modal -->
+                <div id="agentModal" class="modal">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h2 id="modal-agent-name">📄 Agent Data</h2>
+                            <button class="close-btn" onclick="closeModal()">&times;</button>
+                        </div>
+                        <div class="modal-body" id="modal-body">
+                            <p style="text-align:center; padding:40px; color:#999;">Loading...</p>
+                        </div>
+                    </div>
+                </div>
+                
                 <button class="refresh-btn" onclick="loadAgents()">🔄 Refresh</button>
                 
                 <script>
@@ -556,8 +835,8 @@ class Dashboard:
                                 return;
                             }
                             
-                            container.innerHTML = data.agents.map(agent => `
-                                <div class="agent-node">
+                            container.innerHTML = data.agents.map((agent, index) => `
+                                <div class="agent-node" onclick="showAgentJSON(${index})">
                                     <h4>🤖 ${agent.name}</h4>
                                     <div class="agent-info">
                                         <p><strong>ID:</strong> ${agent.agent_id.substring(0, 8)}...</p>
@@ -573,6 +852,9 @@ class Dashboard:
                                     </div>
                                 </div>
                             `).join('');
+                            
+                            // Store agents data globally for modal access
+                            window.agentsData = data.agents;
                             
                         } catch (error) {
                             document.getElementById('error-container').innerHTML = 
@@ -672,6 +954,153 @@ class Dashboard:
                         if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
                             sendMessage();
+                        }
+                    });
+                    
+                    // Modal functionality for showing agent JSON
+                    async function showAgentJSON(index) {
+                        const agent = window.agentsData[index];
+                        if (!agent) return;
+                        
+                        const modal = document.getElementById('agentModal');
+                        const modalName = document.getElementById('modal-agent-name');
+                        const modalBody = document.getElementById('modal-body');
+                        
+                        modalName.textContent = `📄 ${agent.name} - Latest Data`;
+                        modalBody.innerHTML = '<p style="text-align:center; padding:40px; color:#999;">Loading data from MongoDB...</p>';
+                        
+                        modal.style.display = 'block';
+                        
+                        try {
+                            // Fetch latest monitoring data for this agent from MongoDB
+                            const response = await fetch(`/api/agent/${agent.name}/latest`);
+                            const data = await response.json();
+                            
+                            if (data.error) {
+                                modalBody.innerHTML = `
+                                    <div style="text-align:center; padding:40px;">
+                                        <div style="font-size:3em; margin-bottom:20px;">⚠️</div>
+                                        <h3 style="color:#ff4444; margin-bottom:10px;">${data.error}</h3>
+                                        <p style="color:#666;">No data found in MongoDB for this agent</p>
+                                    </div>
+                                `;
+                            } else {
+                                // Format and display the result content
+                                modalBody.innerHTML = formatAgentData(agent.name, data);
+                            }
+                        } catch (error) {
+                            modalBody.innerHTML = `
+                                <div style="text-align:center; padding:40px;">
+                                    <div style="font-size:3em; margin-bottom:20px;">❌</div>
+                                    <h3 style="color:#ff4444; margin-bottom:10px;">Failed to fetch data</h3>
+                                    <p style="color:#666;">${error.message}</p>
+                                </div>
+                            `;
+                        }
+                    }
+                    
+                    function formatAgentData(agentName, data) {
+                        const monitoringData = data.monitoring_data || {};
+                        const result = monitoringData.result || monitoringData;
+                        const content = result.content || result;
+                        
+                        let html = '';
+                        
+                        // Metadata section
+                        html += `
+                            <div class="metadata-section">
+                                <strong>🕐 Iteration:</strong> #${data.iteration} &nbsp;&nbsp;
+                                <strong>📅 Timestamp:</strong> ${new Date(data.timestamp).toLocaleString()}
+                            </div>
+                        `;
+                        
+                        // Main content section
+                        if (typeof content === 'object' && content !== null) {
+                            html += '<div class="result-section">';
+                            html += '<div class="result-header">📊 Generated Data</div>';
+                            html += '<div class="result-content">';
+                            
+                            // Display each field in content
+                            for (const [key, value] of Object.entries(content)) {
+                                html += '<div class="result-item">';
+                                html += `<div class="result-label">${formatLabel(key)}</div>`;
+                                html += `<div class="result-value">${formatValue(value)}</div>`;
+                                html += '</div>';
+                            }
+                            
+                            html += '</div></div>';
+                        } else if (typeof content === 'string') {
+                            html += '<div class="result-section">';
+                            html += '<div class="result-header">📊 Generated Data</div>';
+                            html += `<div class="result-content">${escapeHtml(content)}</div>`;
+                            html += '</div>';
+                        }
+                        
+                        // Raw JSON toggle
+                        const jsonData = JSON.stringify({
+                            agent_name: agentName,
+                            iteration: data.iteration,
+                            timestamp: data.timestamp,
+                            generated_data: monitoringData
+                        }, null, 2);
+                        
+                        html += `
+                            <button class="toggle-json" onclick="toggleRawJson()">🔍 Show Raw JSON</button>
+                            <div id="raw-json" class="json-raw" style="display:none;">
+                                <pre>${escapeHtml(jsonData)}</pre>
+                            </div>
+                        `;
+                        
+                        return html;
+                    }
+                    
+                    function formatLabel(key) {
+                        // Convert snake_case or camelCase to Title Case
+                        return key
+                            .replace(/_/g, ' ')
+                            .replace(/([A-Z])/g, ' $1')
+                            .replace(/^./, str => str.toUpperCase())
+                            .trim();
+                    }
+                    
+                    function formatValue(value) {
+                        if (value === null) return '<em>null</em>';
+                        if (value === undefined) return '<em>undefined</em>';
+                        if (typeof value === 'boolean') return value ? '✓ Yes' : '✗ No';
+                        if (typeof value === 'number') return value.toLocaleString();
+                        if (typeof value === 'object') {
+                            return `<pre style="margin:5px 0; padding:10px; background:#f5f5f5; border-radius:4px; font-size:0.9em;">${escapeHtml(JSON.stringify(value, null, 2))}</pre>`;
+                        }
+                        return escapeHtml(String(value));
+                    }
+                    
+                    function toggleRawJson() {
+                        const rawJson = document.getElementById('raw-json');
+                        if (rawJson.style.display === 'none') {
+                            rawJson.style.display = 'block';
+                            event.target.textContent = '🔼 Hide Raw JSON';
+                        } else {
+                            rawJson.style.display = 'none';
+                            event.target.textContent = '🔍 Show Raw JSON';
+                        }
+                    }
+                    
+                    function closeModal() {
+                        document.getElementById('agentModal').style.display = 'none';
+                    }
+                    
+                    // Close modal when clicking outside of it
+                    window.onclick = function(event) {
+                        const modal = document.getElementById('agentModal');
+                        if (event.target == modal) {
+                            closeModal();
+                        }
+                    }
+                    
+                    // Close modal with Escape key
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape') {
+                            closeModal();
                         }
                     });
                     
@@ -788,6 +1217,51 @@ class Dashboard:
                 
             except Exception as e:
                 return jsonify({"error": str(e)}), 500
+        
+        @self.app.route('/api/agent/<agent_name>/latest')
+        def api_agent_latest(agent_name):
+            """API endpoint para obtener los últimos datos de monitoreo de un agente."""
+            try:
+                # Obtener el documento más reciente de MongoDB
+                latest_doc = self.mongo_collection.find_one(
+                    sort=[("timestamp", -1)]
+                )
+                
+                if not latest_doc:
+                    return jsonify({
+                        "error": "No monitoring data available",
+                        "agent_name": agent_name
+                    })
+                
+                # Extraer datos del agente específico
+                agents_data = latest_doc.get('agents', {})
+                
+                # Buscar el agente (case-insensitive)
+                agent_monitoring = None
+                for key, value in agents_data.items():
+                    if key.lower() == agent_name.lower():
+                        agent_monitoring = value
+                        break
+                
+                if not agent_monitoring:
+                    return jsonify({
+                        "error": f"No monitoring data found for agent '{agent_name}'",
+                        "agent_name": agent_name,
+                        "available_agents": list(agents_data.keys())
+                    })
+                
+                return jsonify({
+                    "agent_name": agent_name,
+                    "iteration": latest_doc.get('iteration'),
+                    "timestamp": latest_doc.get('timestamp').isoformat() if hasattr(latest_doc.get('timestamp'), 'isoformat') else str(latest_doc.get('timestamp')),
+                    "monitoring_data": agent_monitoring
+                })
+                
+            except Exception as e:
+                return jsonify({
+                    "error": f"Error fetching monitoring data: {str(e)}",
+                    "agent_name": agent_name
+                }), 500
     
     def read_mongodb_data(self) -> Optional[Dict[str, Any]]:
         """

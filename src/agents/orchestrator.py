@@ -356,20 +356,31 @@ class AgentOrchestrator:
         
         # Send requests to all agents dynamically
         # Use list() to create a copy and avoid RuntimeError if dict changes during iteration
-        for agent_name, client in list(self.clients.items()):
-            if agent_name in prompts:
-                prompt = prompts[agent_name]
+        for agent_key, client in list(self.clients.items()):
+            if agent_key in prompts:
+                prompt = prompts[agent_key]
             else:
-                prompt = f"Provide information about {agent_name}."
+                prompt = f"Provide information about {agent_key}."
             
-            print(f"  ✓ Querying {agent_name.capitalize()} Agent...", end=" ")
+            # Find the full agent name from registered_agents
+            full_agent_name = None
+            for agent_id, info in self.registered_agents.items():
+                agent_info_key = info['name'].lower().replace(' agent', '').replace(' ', '_')
+                if agent_info_key == agent_key:
+                    full_agent_name = info['name']
+                    break
+            
+            # Use full name if found, otherwise use agent_key
+            response_key = full_agent_name if full_agent_name else agent_key
+            
+            print(f"  ✓ Querying {response_key}...", end=" ")
             try:
                 agent_response = client.chat(prompt)
-                raw_responses[agent_name] = agent_response
+                raw_responses[response_key] = agent_response
                 print("OK")
             except Exception as e:
                 print(f"ERROR: {e}")
-                raw_responses[agent_name] = {"error": str(e)}
+                raw_responses[response_key] = {"error": str(e)}
         
         return {"raw": raw_responses}
 

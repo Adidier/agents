@@ -9,46 +9,108 @@ Sistema multi-agente para gestión inteligente de energía solar con almacenamie
 pip install -r requirements.txt
 ```
 
-### 2. Iniciar Servidor MCP de MongoDB (Opcional)
+### 2. Iniciar MongoDB (Opcional pero recomendado)
 ```bash
-# Configurar variable de entorno con tu conexión MongoDB
-export MDB_MCP_CONNECTION_STRING="mongodb+srv://usuario:password@cluster.mongodb.net/database"
+# Usando Docker
+docker run -d -p 27017:27017 --name mongodb mongo:latest
 
-# Iniciar servidor MCP con mapeo de puertos
-./start_mcp_server.sh
-
-# Verificar que está corriendo
-./check_mcp_server.sh
+# O instalar localmente
+# Ubuntu/Debian: sudo apt install mongodb
+# macOS: brew install mongodb-community
 ```
 
-### 3. Lanzar Agentes
+### 3. Lanzar Todos los Agentes
 ```bash
-# Opción A: Sistema completo
-./launch_system.sh
+# Inicia todos los agentes del sistema en segundo plano
+./launch_all_agents.sh
 
-# Opción B: Agentes individuales
-./launch_battery.sh   # Puerto 8005
-./launch_load.sh      # Puerto 8006
-python src/agents/generator.py  # Puerto 8002
-python src/agents/weather.py    # Puerto 8004
+# Los agentes se inician en los siguientes puertos:
+# - Generator (Solar): 8002
+# - Weather: 8004
+# - Battery: 8005
+# - Load: 8006
+# - Energy Price Predictor: 8007
 ```
 
-### 4. Iniciar Orchestrator
+### 4. Iniciar Orchestrator (Nueva terminal)
 ```bash
-# Con MongoDB MCP (recomendado)
+# Coordina todos los agentes y guarda en MongoDB
 ./launch_orchestrator.sh
+```
 
-# Solo con JSON local
-python src/agents/orchestrator.py \
-  --solar-endpoint http://localhost:8002 \
-  --battery-endpoint http://localhost:8005 \
-  --load-endpoint http://localhost:8006 \
-  --weather-endpoint http://localhost:8004
+### 5. Visualizar Dashboard (Nueva terminal)
+```bash
+# Monitoreo en tiempo real con datos del mercado eléctrico
+./launch_dashboard.sh
+
+# El dashboard muestra:
+# - Generación solar y predicciones LSTM
+# - Precios de energía en tiempo real 💰
+# - Condiciones del mercado eléctrico
+# - Estado de baterías y consumo
+# - Recomendaciones inteligentes basadas en precios
+
+# Dashboard Web con Diagrama de Arquitectura:
+# Accede a http://localhost:5000 en tu navegador
+# - Visualización interactiva de agentes registrados 🌐
+# - Diagrama de arquitectura del sistema multi-agente
+# - Actualización automática cada 10 segundos
+# - Vista de endpoints y skills de cada agente
 ```
 
 ---
 
-## 📚 Documentación
+## 🎯 Flujo de Trabajo Completo
+
+1. **Agentes recopilan datos** → Generator, Weather, Battery, Load, Energy Price Predictor
+2. **Orchestrator coordina** → Consulta a todos los agentes cada 10 segundos
+3. **Datos se almacenan** → MongoDB (solar_energy.agent_data)
+4. **Dashboard visualiza** → Muestra datos en tiempo real con análisis del mercado
+5. **Sistema experto decide** → Recomendaciones basadas en precios de energía
+
+---
+
+## 📺 Dashboard
+```bash
+# Con MongoDB y todos los agentes (recomendado)
+./launch_orchestrator.sh
+
+# Solo con JSON local
+python src/agents/orchestrator.py \
+  --generator-endpoint http://localhost:8002 \
+  --weather-endpoint http://localhost:8004 \
+  --battery-endpoint http://localhost:8005 \
+  --load-endpoint http://localhost:8006 \
+  --energy-price-endpoint http://localhost:8007 \
+  --mongodb-uri "mongodb://localhost:27017/" \
+  --db-name solar_energy \
+  --collection agent_data
+```
+
+---
+
+## � Dashboard
+
+El dashboard muestra en tiempo real:
+- 🔆 **Generación Solar**: Predicciones LSTM, escenarios (Normal/Degradado/Fallo), desviaciones
+- 🌤️ **Condiciones Climáticas**: Temperatura, irradiancia, viento
+- 🔋 **Estado de Baterías**: SoC, voltaje, corriente, carga/descarga
+- ⚡ **Consumo de Cargas**: Demanda actual, perfil de consumo
+- 💰 **Precios de Energía**: Precio actual del mercado, estadísticas 24h, condiciones del mercado, recomendaciones
+
+Características:
+- Visualización con códigos de color (🟢 Normal, 🟡 Advertencia, 🔴 Crítico)
+- Integración con Ollama para consultas en lenguaje natural
+- Actualización automática desde MongoDB
+- Métricas históricas y tendencias
+
+```bash
+python src/agents/dashboard.py --mongodb-uri "mongodb://localhost:27017/"
+```
+
+---
+
+## �📚 Documentación
 
 - **[Arquitectura del Sistema](docs/ARCHITECTURE.md)** - Visión completa del sistema
 - **[Battery Agent](docs/BATTERY_AGENT.md)** - Almacenamiento de baterías
@@ -80,10 +142,18 @@ python src/agents/orchestrator.py \
 - Servidor mock para desarrollo
 - Irradiancia, temperatura, viento
 
+### 💰 Energy Price Predictor Agent (Puerto 8007)
+- Predicción de precios de electricidad en tiempo real
+- Análisis del mercado eléctrico mexicano (CENACE)
+- Recomendaciones inteligentes de consumo
+- Pronósticos de precios futuros
+
 ### 🎯 Orchestrator
-- Coordina todos los agentes
-- Guarda datos en MongoDB (vía MCP)
-- Backup en JSON local
+- Coordina todos los agentes (Generator, Weather, Battery, Load, Energy Price Predictor)
+- Sistema experto de toma de decisiones basado en precios de energía
+- Guarda datos en MongoDB con soporte para pymongo directo
+- Backup en JSON local para monitoreo
+- Análisis de condiciones del mercado eléctrico en tiempo real
 
 ---
 
@@ -131,6 +201,92 @@ docker run --rm -i \
 # Probar manualmente
 curl http://localhost:3000/.well-known/mcp.json
 curl http://localhost:3000/tools
+```
+
+---
+
+## 📋 Registro Dinámico de Agentes (JADE-like)
+
+El sistema implementa un **registro dinámico de agentes** similar al Directory Facilitator (DF) de JADE:
+
+### Características
+
+- **Auto-registro**: Los agentes se registran automáticamente al iniciar
+- **Descubrimiento dinámico**: El orchestrator descubre agentes sin configuración previa
+- **Heartbeat**: Monitoreo de salud de agentes
+- **Persistencia**: Snapshots del registro en MongoDB (colección `agent_registry`)
+- **Web Dashboard**: Visualización en tiempo real de la arquitectura del sistema
+
+### Arquitectura
+
+```
+┌─────────────────────┐
+│   Orchestrator      │  Puerto 8001 - Registry Server
+│   (Registry API)    │  
+└──────────┬──────────┘
+           │
+           │ REST API (/register, /deregister, /agents, /heartbeat)
+           │
+    ┌──────┴───────┬───────────┬──────────┬───────────┐
+    │              │           │          │           │
+┌───▼───┐    ┌────▼────┐  ┌───▼───┐  ┌──▼────┐  ┌───▼────┐
+│Solar  │    │Weather  │  │Battery│  │Load   │  │Price   │
+│Agent  │    │Agent    │  │Agent  │  │Agent  │  │Pred    │
+│:8002  │    │:8004    │  │:8005  │  │:8006  │  │:8007   │
+└───────┘    └─────────┘  └───────┘  └───────┘  └────────┘
+```
+
+### Dashboard Web 🌐
+
+Accede a `http://localhost:5000` para ver:
+
+- **Diagrama de Arquitectura**: Visualización interactiva de todos los agentes
+- **Estadísticas**: Total de agentes, puertos, última actualización
+- **Detalles de Agentes**: Endpoints, skills, IDs únicos
+- **Auto-refresh**: Actualización cada 10 segundos
+
+```bash
+# Lanzar dashboard web
+./launch_dashboard.sh
+
+# Acceder a:
+# - Terminal: Datos en tiempo real + chat con Ollama
+# - Web: http://localhost:5000 para diagrama de agentes
+```
+
+### Endpoints de Registry API
+
+| Endpoint | Método | Descripción |
+|----------|--------|-------------|
+| `/register` | POST | Registrar un nuevo agente |
+| `/deregister` | POST | Des-registrar un agente |
+| `/agents` | GET | Listar todos los agentes registrados |
+| `/heartbeat` | POST | Actualizar estado de un agente |
+
+### Datos en MongoDB
+
+El registro se guarda en dos colecciones:
+
+1. **`agent_data`**: Datos de monitoreo de cada iteración
+2. **`agent_registry`**: Snapshots del registro de agentes
+
+```javascript
+// Ejemplo de documento en agent_registry
+{
+  "timestamp": ISODate("2024-01-15T10:30:00Z"),
+  "agents": [
+    {
+      "agent_id": "uuid-123...",
+      "name": "Solar Generator Agent",
+      "endpoint": "http://localhost:8002",
+      "skills": ["solar_generation", "lstm_prediction"],
+      "registered_at": ISODate("2024-01-15T10:00:00Z"),
+      "last_heartbeat": ISODate("2024-01-15T10:29:55Z")
+    }
+  ],
+  "total_agents": 5,
+  "registry_port": "8001"
+}
 ```
 
 ---
@@ -196,8 +352,16 @@ python src/agents/battery.py --port 8005 --soc 50 --capacity 10
 # Agente de Consumo Eléctrico
 python src/agents/load.py --port 8006 --profile residential --base-load 1.5
 
-# Dashboard
-python src/agents/dashboard.py 
+# Agente Predictor de Precios de Energía (CENACE)
+python src/agents/energy_price_predictor.py --port 8007 --sistema SIN --mercado MDA --nodo 06MTY-115
+
+# Dashboard (Monitoreo en tiempo real con MongoDB)
+python src/agents/dashboard.py \
+  --mongodb-uri "mongodb://localhost:27017/" \
+  --db-name solar_energy \
+  --collection agent_data \
+  --refresh 30 \
+  --ollama-model deepseek-r1:1.5b
 
 # Servidor Mock de Clima
 python tools/mock_weather_server.py 
@@ -219,3 +383,25 @@ ssh fear@IP
 
 
 DataFrame → Selecciona columnas → Normaliza → Secuencia[24] → LSTM → Desnormaliza → Predicción
+
+
+
+python src/agents/dashboard.py \
+  --mongodb-uri "mongodb://localhost:27017/" \
+  --db-name solar_energy \
+  --collection agent_data \
+  --refresh 30 \
+  --web-port 5000 \
+  --orchestrator-url http://localhost:8001 \
+  --ollama-model deepseek-r1:1.5b
+
+
+  python src/agents/dashboard.py --mongodb-uri "mongodb://localhost:27017/" --db-name solar_energy --collection agent_data --refresh 30 --web-port 5000 --orchestrator-url http://localhost:8001 --ollama-model deepseek-r1:1.5b
+
+sudo docker start mongodb && echo "✅ MongoDB iniciado correctamente"
+
+
+
+sudo systemctl stop ollama
+OLLAMA_NUM_GPU=0 ollama serve &
+
