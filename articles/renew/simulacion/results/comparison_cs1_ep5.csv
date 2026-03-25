@@ -1,0 +1,4 @@
+algo,total_savings_gbp,adjusted_savings_gbp,ess_loss_pct,elapsed_s
+ddpg,1173933.37,1173632.94,0.03,25.1
+maddpg,2565121.01,2565087.43,0.0,69.2
+rbm,18041.32,17692.19,1.94,0.1

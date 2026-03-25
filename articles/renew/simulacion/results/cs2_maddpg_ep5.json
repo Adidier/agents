@@ -1,0 +1,15 @@
+{
+  "algo": "maddpg",
+  "episode_savings": [
+    344961.6682443186,
+    349018.1185557999,
+    424158.55994075444
+  ],
+  "total_savings_gbp": 1118138.3467408728,
+  "total_ess_loss_gbp": 33.59388490101584,
+  "adjusted_savings_gbp": 1118104.752855972,
+  "ess_loss_pct": 0.0030044479736281845,
+  "total_mga_revenue_gbp": 24116.14784547547,
+  "elapsed_s": 220.27047514915466,
+  "seed": 42
+}

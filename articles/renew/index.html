@@ -1,0 +1,2359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Renewable energy integration and microgrid energy trading using multi-agent deep reinforcement learning — Guía Completa</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
+  <style>
+    :root {
+      --bg:        #080c18;
+      --surface:   #0d1120;
+      --surface2:  #131828;
+      --surface3:  #1a2035;
+      --border:    #1e2840;
+      --accent:    #6c8cff;
+      --accent2:   #ff7c5c;
+      --accent3:   #40cfa0;
+      --accent4:   #f5c542;
+      --purple:    #a78bfa;
+      --pink:      #f472b6;
+      --cyan:      #38bdf8;
+      --text:      #dde4f5;
+      --muted:     #7988aa;
+      --code-bg:   #060a12;
+      --green:     #2e7d32;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      background: linear-gradient(140deg, #050e28 0%, #0a061e 45%, #041a12 100%);
+      padding: 72px 40px 60px;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 70% 50% at 50% 0%,
+        rgba(108,140,255,0.10), transparent);
+    }
+    .hero .badge {
+      display: inline-block;
+      background: rgba(108,140,255,0.12);
+      border: 1px solid rgba(108,140,255,0.35);
+      color: var(--accent);
+      border-radius: 20px;
+      padding: 4px 18px;
+      font-size: 0.72rem;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      margin-bottom: 22px;
+    }
+    .hero h1 {
+      font-size: clamp(1.8rem, 4vw, 2.9rem);
+      font-weight: 800;
+      background: linear-gradient(120deg, #9db4ff 10%, #40cfa0 55%, #ffa07c 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px;
+      position: relative;
+    }
+    .hero p {
+      color: var(--muted);
+      font-size: 1rem;
+      max-width: 760px;
+      margin: 0 auto 28px;
+      position: relative;
+    }
+    .hero-links { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; position: relative; }
+    .hero-links a {
+      display: inline-block;
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: opacity 0.2s;
+    }
+    .hero-links a:hover { opacity: 0.8; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: var(--surface3); color: var(--text); border: 1px solid var(--border); }
+
+    /* ── LAYOUT ── */
+    .layout { display: flex; min-height: 100vh; }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 260px;
+      flex-shrink: 0;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 28px 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    .sidebar-title {
+      color: var(--muted);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 0 20px 12px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+    .sidebar a {
+      display: block;
+      padding: 7px 20px;
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.875rem;
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+    }
+    .sidebar a:hover { color: var(--text); background: var(--surface2); border-left-color: var(--accent); }
+    .sidebar a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(108,140,255,0.07); }
+    .sidebar .section-group { margin-top: 6px; }
+    .sidebar .group-label {
+      color: var(--accent4);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 10px 20px 4px;
+    }
+
+    /* ── MAIN ── */
+    .main { flex: 1; padding: 48px 52px 100px; max-width: 980px; }
+
+    /* ── SECTIONS ── */
+    .section { margin-bottom: 72px; }
+    .section-anchor { scroll-margin-top: 24px; }
+
+    h2.section-h {
+      font-size: 1.55rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    h2.section-h .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      background: rgba(108,140,255,0.15);
+      color: var(--accent);
+      font-size: 0.85rem;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    h3 { font-size: 1.1rem; color: var(--accent3); margin: 28px 0 12px; font-weight: 650; }
+    h4 { font-size: 0.96rem; color: var(--accent4); margin: 20px 0 8px; font-weight: 650; }
+    p { margin-bottom: 14px; color: var(--text); }
+
+    /* ── CARDS ── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 20px 0; }
+    .card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .card-title { font-weight: 700; margin-bottom: 8px; font-size: 0.95rem; }
+    .card p { font-size: 0.9rem; color: var(--muted); margin-bottom: 0; }
+    .card.accent { border-left: 3px solid var(--accent); }
+    .card.green2  { border-left: 3px solid var(--accent3); }
+    .card.orange { border-left: 3px solid var(--accent2); }
+    .card.purple { border-left: 3px solid var(--purple); }
+    .card.yellow { border-left: 3px solid var(--accent4); }
+
+    /* ── CALLOUTS ── */
+    .callout {
+      display: flex;
+      gap: 14px;
+      padding: 14px 18px;
+      border-radius: 8px;
+      margin: 16px 0;
+      font-size: 0.9rem;
+    }
+    .callout .ico { font-size: 1.2rem; flex-shrink: 0; }
+    .callout.info    { background: rgba(56,189,248,0.08); border-left: 3px solid var(--cyan); }
+    .callout.tip     { background: rgba(64,207,160,0.08); border-left: 3px solid var(--accent3); }
+    .callout.paper   { background: rgba(245,197,66,0.08); border-left: 3px solid var(--accent4); }
+    .callout.warn    { background: rgba(255,124,92,0.08);  border-left: 3px solid var(--accent2); }
+    .callout.key     { background: rgba(108,140,255,0.08); border-left: 3px solid var(--accent); }
+
+    /* ── TABLES ── */
+    .table-wrap { overflow-x: auto; margin: 18px 0; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th { background: var(--surface3); color: var(--accent); padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+    td { padding: 9px 14px; border-bottom: 1px solid var(--border); color: var(--text); }
+    tr:nth-child(even) td { background: var(--surface2); }
+    td.highlight { color: var(--accent3); font-weight: 700; }
+    td.best { color: var(--accent4); font-weight: 700; background: rgba(245,197,66,0.05) !important; }
+
+    /* ── CODE BLOCKS ── */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px 22px;
+      overflow-x: auto;
+      font-size: 0.875rem;
+      line-height: 1.65;
+      margin: 14px 0;
+    }
+    code { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+    :not(pre) > code {
+      background: rgba(108,140,255,0.1);
+      border: 1px solid rgba(108,140,255,0.2);
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 0.87em;
+      color: var(--accent);
+    }
+    .kw  { color: #80cbc4; font-weight: 600; }
+    .cls { color: #82aaff; }
+    .fn  { color: #c3e88d; }
+    .str { color: #c3e88d; }
+    .cmt { color: #546e7a; font-style: italic; }
+    .num { color: #f78c6c; }
+    .op  { color: #89ddff; }
+
+    /* ── FORMULA BLOCKS ── */
+    .eq {
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 20px;
+      text-align: center;
+      margin: 14px 0;
+      font-size: 1rem;
+    }
+    .eq-label { font-size: 0.76rem; color: var(--muted); margin-top: 6px; }
+
+    /* ── ALGO BOX ── */
+    .algo {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 24px;
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 0.875rem;
+      line-height: 1.7;
+      margin: 18px 0;
+      counter-reset: algo-line;
+    }
+    .algo .line::before {
+      counter-increment: algo-line;
+      content: counter(algo-line);
+      display: inline-block;
+      width: 24px;
+      color: var(--muted);
+      font-size: 0.8rem;
+      user-select: none;
+    }
+    .algo .line { display: block; }
+
+    /* ── NET DIAGRAM ── */
+    .net-diagram {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      padding: 16px 20px;
+      background: var(--surface2);
+      border-radius: 8px;
+      margin: 14px 0;
+      border: 1px solid var(--border);
+    }
+    .nd-box {
+      border-radius: 8px; padding: 8px 14px;
+      font-size: 0.78rem; text-align: center;
+      line-height: 1.4; font-weight: 600;
+    }
+    .nd-box small { display: block; font-weight: 400; color: var(--muted); font-size: 0.72rem; }
+    .nd-input  { background: rgba(108,140,255,0.15); border: 1px solid rgba(108,140,255,0.4); color: var(--accent); }
+    .nd-hidden { background: rgba(64,207,160,0.12); border: 1px solid rgba(64,207,160,0.3); color: var(--accent3); }
+    .nd-output { background: rgba(255,124,92,0.12); border: 1px solid rgba(255,124,92,0.3); color: var(--accent2); }
+    .nd-noisy  { background: rgba(244,114,182,0.12); border: 1px solid rgba(244,114,182,0.3); color: var(--pink); }
+    .nd-tanh   { background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.3); color: var(--purple); }
+    .nd-arrow  { color: var(--muted); font-size: 1.1rem; }
+
+    /* ── RESULT BADGE ── */
+    .badge-result {
+      display: inline-block;
+      background: rgba(64,207,160,0.15);
+      border: 1px solid rgba(64,207,160,0.35);
+      color: var(--accent3);
+      border-radius: 6px;
+      padding: 2px 10px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    /* ── DIVIDER ── */
+    hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+    /* ── EXTERNAL LINKS ── */
+    .ext-links { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+    .ext-link {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 18px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      text-decoration: none;
+      color: var(--text);
+      font-size: 0.88rem;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .ext-link:hover { background: var(--surface3); border-color: var(--accent); color: var(--accent); }
+    .ext-link .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── DOC TABS ── */
+    .doc-tabs-bar {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 10px 10px 0 0;
+      overflow: hidden;
+    }
+    .doc-tab {
+      padding: 12px 24px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--muted);
+      border: none;
+      border-bottom: 3px solid transparent;
+      background: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.18s;
+      white-space: nowrap;
+    }
+    .doc-tab:hover { color: var(--text); background: var(--surface2); }
+    .doc-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--surface2); }
+    .doc-tab .tab-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .doc-panel { display: none; flex-direction: column; }
+    .doc-panel.active { display: flex; }
+    .doc-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 18px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-bottom: none;
+      font-size: 0.82rem;
+      color: var(--muted);
+      font-family: 'Cascadia Code', 'Fira Code', monospace;
+    }
+    .doc-panel-header a {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent);
+      text-decoration: none;
+      padding: 4px 12px;
+      border: 1px solid rgba(108,140,255,0.35);
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      transition: background 0.15s;
+    }
+    .doc-panel-header a:hover { background: rgba(108,140,255,0.12); }
+    .doc-iframe {
+      width: 100%;
+      height: 78vh;
+      border: 1px solid var(--border);
+      border-radius: 0 0 10px 10px;
+      background: #fff;
+      display: block;
+    }
+
+    /* ── DOC REF CARD (inline) ── */
+    .doc-ref {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent4);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin: 18px 0;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .doc-ref:hover { background: var(--surface3); border-color: var(--accent); border-left-color: var(--accent4); }
+    .doc-ref-left { display: flex; align-items: center; gap: 12px; }
+    .doc-ref-ico { font-size: 1.5rem; line-height: 1; }
+    .doc-ref-title { color: var(--text); font-weight: 700; font-size: 0.92rem; }
+    .doc-ref-sub { color: var(--muted); font-size: 0.79rem; margin-top: 3px; }
+    .doc-ref-arrow { color: var(--accent); font-size: 1.3rem; font-weight: 300; }
+
+    /* ── FIGURES ── */
+    .fig-block { margin: 28px 0; text-align: center; }
+    .fig-block img { max-width: 100%; border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.5); }
+    .fig-block figcaption { margin-top: 10px; font-size: 0.82rem;
+      color: #94a3b8; font-style: italic; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .main { padding: 28px 20px 80px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <div class="badge">Applied Energy · 2023 · Paper + Implementación</div>
+  <h1>Renewable energy integration and microgrid energy trading using multi-agent deep reinforcement learning</h1>
+  <p>
+    Control multi-agente de sistemas híbridos de almacenamiento de energía (HESS) con
+    aprendizaje centralizado y ejecución descentralizada para integración de renovables
+    y comercio de energía con microrredes externas.
+  </p>
+  <div class="hero-links" style="margin-top:1.2rem;">
+    <a class="btn-primary" href="#algoritmos">→ Algoritmos RL</a>
+    <a class="btn-secondary" href="#resultados">Resultados</a>
+  </div>
+</div>
+
+<!-- ── LAYOUT ── -->
+<div class="layout">
+
+<!-- ── SIDEBAR ── -->
+<nav class="sidebar">
+  <div class="sidebar-title">Contenido</div>
+  <div class="section-group">
+    <div class="group-label">El artículo</div>
+    <a href="#resumen">Resumen y contribuciones</a>
+    <a href="#sistema">La microrred</a>
+    <a href="#hess">HESS — 3 tipos de ESS</a>
+  </div>
+  <div class="section-group">
+    <div class="group-label">Algoritmos RL</div>
+    <a href="#algoritmos">Fundamentos de RL</a>
+    <a href="#ddpg">DDPG</a>
+    <a href="#variantes">Variantes multi-agente</a>
+    <a href="#d3pg">D3PG (distributional)</a>
+    <a href="#td3">TD3 (twin delayed)</a>
+    <a href="#maddpg">MADDPG (multi-agente)</a>
+  </div>
+  <div class="section-group">
+    <div class="group-label">Entorno</div>
+    <a href="#estados">Estados y observaciones</a>
+    <a href="#acciones">Acciones de los agentes</a>
+    <a href="#recompensas">Función de recompensa</a>
+    <a href="#parametros">Parámetros del entorno</a>
+  </div>
+  <div class="section-group">
+    <div class="group-label">Casos de estudio</div>
+    <a href="#cs1">Caso 1 — HESS</a>
+    <a href="#cs2">Caso 2 — xMG trading</a>
+    <a href="#benchmarks-sec">Benchmarks</a>
+  </div>
+  <div class="section-group">
+    <div class="group-label">Resultados</div>
+    <a href="#resultados">Tabla de resultados</a>
+    <a href="#comportamiento">Comportamiento de agentes</a>
+  </div>
+  <div class="section-group">
+    <div class="group-label">Implementación</div>
+    <a href="#redes">Arquitecturas PyTorch</a>
+    <a href="#conclusiones">Conclusiones</a>
+  </div>
+</nav>
+
+<!-- ── MAIN ── -->
+<main class="main">
+
+<!-- ══════════════════════════════════════════════════════
+     1. RESUMEN
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="resumen">
+  <h2 class="section-h"><span class="num">1</span> Resumen y contribuciones del artículo</h2>
+
+  <div class="callout key">
+    <div class="ico">📄</div>
+    <div><strong>Artículo:</strong> "Multi-Agent Deep Deterministic Policy Gradient for
+    Mixed Cooperative-Competitive MAS Microgrid Scenario for RES Integration and Energy
+    Arbitrage" — <em>Applied Energy, 2023</em></div>
+  </div>
+
+  <div class="cards">
+    <div class="card accent">
+      <div class="card-title" style="color:var(--accent);">🎯 Contribución 1</div>
+      <p>Primer uso de MADDPG en un escenario de microrred MAS <strong>mixto</strong>
+        (cooperativo + competitivo) para integración de RES y arbitraje energético.</p>
+    </div>
+    <div class="card green2">
+      <div class="card-title" style="color:var(--accent3);">⚡ Contribución 2</div>
+      <p>Combina arbitraje energético e integración de renovables en un único problema
+        bajo precio dinámico asimétrico (compra ≠ venta).</p>
+    </div>
+    <div class="card orange">
+      <div class="card-title" style="color:var(--accent2);">🔬 Contribución 3</div>
+      <p>Evalúa controlador global único vs. múltiples agentes distribuidos con
+        <strong>recompensa de contribución marginal</strong>.</p>
+    </div>
+  </div>
+
+  <div style="background:var(--surface);border-radius:10px;padding:20px 24px;border:1px solid rgba(167,139,250,0.25);margin-top:16px;">
+    <div class="card-title" style="color:var(--purple);margin-bottom:12px;">📊 Contribución 4</div>
+    <p style="margin-bottom:12px;">Compara 9 algoritmos de forma sistemática:</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px 32px;">
+      <div><strong>DDPG</strong> — Deep Deterministic Policy Gradient</div>
+      <div><strong>D3PG</strong> — Distributional DDPG</div>
+      <div><strong>TD3</strong> — Twin Delayed DDPG</div>
+      <div><strong>MADDPG</strong> — Multi-Agent DDPG</div>
+      <div><strong>MAD3PG</strong> — Multi-Agent Distributional DDPG</div>
+      <div><strong>MATD3</strong> — Multi-Agent Twin Delayed DDPG</div>
+      <div><strong>MADQN</strong> — Multi-Agent Deep Q-Network <span style="color:#94a3b8;font-size:0.82rem;">(DQN = Deep Q-Network)</span></div>
+      <div><strong>MARainbow</strong> — Multi-Agent Rainbow Deep Q-Network <span style="color:#94a3b8;font-size:0.82rem;">(Rainbow = DQN + 6 mejoras: PER, distributional, dueling, noisy, multi-step, double Q)</span></div>
+      <div><strong>RBM</strong> — Rule-Based Method (benchmark determinístico)</div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <div class="ico">💡</div>
+    <div><strong>Resultado clave:</strong> El enfoque multi-agente con recompensa de
+    contribución marginal (MAD3PG) supera al controlador global único (DDPG) en
+    <strong>~55%</strong> en el Caso de Estudio 1, y MATD3 lo supera en <strong>+27%</strong>
+    en el Caso de Estudio 2.</div>
+  </div>
+
+  <h3 style="margin-top:2rem;">DDPG vs MADDPG: la diferencia clave</h3>
+  <p style="color:var(--text-muted);font-size:0.92rem;margin-bottom:1rem;">
+    El paper fundamenta la necesidad de MADDPG a partir del fallo de DDPG en entornos
+    multi-agente (sección 3.3). La diferencia no es solo de escala, sino estructural:
+  </p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+    <div style="background:rgba(108,140,255,0.10);border:1px solid var(--accent);border-radius:10px;padding:1rem 1.2rem;">
+      <div style="font-size:0.7rem;letter-spacing:.08em;color:var(--accent);font-weight:700;margin-bottom:.4rem;">DDPG — AGENTE Único</div>
+      <div style="font-weight:600;margin-bottom:.5rem;">Deep Deterministic Policy Gradient</div>
+      <p style="font-size:0.88rem;color:var(--text-muted);margin:0 0 .7rem;">
+        Controla todo el entorno desde un solo agente. En esta microrred, un agente
+        único emite tres acciones simultáneas (una por ESS). Solo observa su propio
+        estado: no tiene información directa sobre lo que hacen el panel solar,
+        la turbina eólica o el mercado en el mismo instante.
+      </p>
+      <div style="font-size:0.82rem;background:rgba(0,0,0,.25);border-radius:6px;padding:.5rem .8rem;color:#a0aec0;margin-bottom:.7rem;">
+        🔋 Agente global → observa (SoC₁, SoC₂, SoC₃, P…) → emite 3 acciones
+      </div>
+      <div class="callout warn" style="margin:0;padding:.6rem .9rem;">
+        <div class="ico">⚠️</div>
+        <div style="font-size:0.83rem;">
+          <strong>Problema (paper, §3.3):</strong> <em>“The environment appears non-stationary
+          from the perspective of a single agent as the behaviours of other agents will
+          change during training.”</em><br>
+          El agente puede observar exactamente el mismo estado y ejecutar la misma
+          acción, pero recibir una recompensa completamente diferente según lo que
+          hagan los demás — lo que hace el aprendizaje muy difícil.
+        </div>
+      </div>
+    </div>
+    <div style="background:rgba(64,207,160,0.10);border:1px solid var(--accent3);border-radius:10px;padding:1rem 1.2rem;">
+      <div style="font-size:0.7rem;letter-spacing:.08em;color:var(--accent3);font-weight:700;margin-bottom:.4rem;">MADDPG — MULTI-AGENTE</div>
+      <div style="font-weight:600;margin-bottom:.5rem;">Multi-Agent DDPG</div>
+      <p style="font-size:0.88rem;color:var(--text-muted);margin:0 0 .7rem;">
+        Cuatro agentes especializados (PV, WT, ESS, xMG) actúan en paralelo, cada
+        uno con su propia red actor y su propia red crítica. Durante el entrenamiento
+        cada crítico observa las acciones de <em>todos</em> los agentes; en ejecución
+        cada actor decide únicamente con su observación local.
+      </p>
+      <div style="font-size:0.82rem;background:rgba(0,0,0,.25);border-radius:6px;padding:.5rem .8rem;color:#a0aec0;margin-bottom:.7rem;">
+        ☀️ PV · 💨 WT · 🔋 ESS · ⚡ xMG → cada uno actúa; crítico ve todo
+      </div>
+      <div class="callout paper" style="margin:0;padding:.6rem .9rem;">
+        <div class="ico">💬</div>
+        <div style="font-size:0.83rem;">
+          <strong>Solución (paper, §3.3):</strong> <em>“MADDPG looks to solve this by using
+          the principle of centralised learning with decentralised execution. Each agent
+          selects its own action based on its own observations during the execution phase,
+          but the architecture of the DDPG critic allows each agent to evaluate performance
+          by observing the actions taken by all other agents, thus solving the problem
+          where agents may perceive the environment as non-stationary.”</em>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     2. LA MICRORRED
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="sistema">
+  <h2 class="section-h"><span class="num">2</span> La microrred</h2>
+
+  <p>La microrred principal es una red <strong>AC/DC híbrida</strong> con inversores
+    y transformadores. Está conectada a la red eléctrica (mercado mayorista dinámico),
+    tiene generación PV + eólica y un HESS de tres tecnologías. Además, en el segundo
+    caso de estudio, puede vender energía a 5 microrredes externas (xMGs).</p>
+
+  <figure class="fig-block">
+    <img src="simulacion/results/agents_topology.png"
+         alt="Topología de la microrred y sus agentes"
+         title="Topología multi-agente de la microrred">
+    <figcaption>Topología de la microrred — cada ESS (VRB, SC, LIB) tiene su
+    propio agente; los críticos centralizados reciben observaciones y acciones de
+    <em>todos</em> los agentes durante el entrenamiento.</figcaption>
+  </figure>
+
+  <h3>Generación renovable</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Fuente</th><th>PV = <em>Photovoltaic</em><br>WT = <em>Wind Turbine</em></th><th>Capacidad máx.</th><th>Modelo</th><th>Datos de entrada</th></tr>
+      <tr>
+        <td><strong>Solar PV</strong></td>
+        <td>Panel / granja fotovoltaica</td>
+        <td>5 MW</td>
+        <td>Escalado lineal de irradiancia → potencia</td>
+        <td>Radiación solar horaria — Keele University</td>
+      </tr>
+      <tr>
+        <td><strong>Eólica WT</strong></td>
+        <td>Aerogenerador (<em>Wind Turbine</em>)</td>
+        <td>2 MW</td>
+        <td>Curva de potencia trozos — Ec.&nbsp;30</td>
+        <td>Velocidad de viento horaria — Keele University</td>
+      </tr>
+    </table>
+  </div>
+
+  <h4 style="color:var(--accent3); margin-top:28px;">☀️ Modelo PV — Radiación solar → Potencia escalada</h4>
+
+  <p>Los paneles fotovoltaicos convierten la radiación solar en electricidad.
+    El paper usa un modelo de <strong>escalado lineal</strong>: la irradiancia
+    medida cada hora en la estación de Keele se multiplica por un factor de escala
+    tal que cuando la irradiancia alcanza su valor de referencia máximo, la salida
+    es exactamente \(X^\text{PV}_\text{max} = 5\,\text{MW}\).</p>
+
+  <div class="cards">
+    <div class="card accent">
+      <div class="card-title" style="color:var(--accent);">Entrada: Irradiancia solar</div>
+      <p>Medida en W/m² (vatios por metro cuadrado de superficie). Varía entre
+        0 (noche / nublado) y ~1 000 W/m² (día despejado, sol cenital).
+        Los datos son horarios — un punto por cada hora del año.</p>
+    </div>
+    <div class="card green2">
+      <div class="card-title" style="color:var(--accent3);">Proceso: Escalado lineal</div>
+      <p>
+        \[X^\text{PV}_t = G_t \times \frac{X^\text{PV}_\text{max}}{G_\text{ref}}\]
+        Donde \(G_t\) es la irradiancia en la hora \(t\) y \(G_\text{ref}\) es el
+        valor de referencia (irradiancia máxima del dataset). La relación es
+        <em>directamente proporcional</em>: el doble de sol → el doble de potencia.
+      </p>
+    </div>
+    <div class="card orange">
+      <div class="card-title" style="color:var(--accent2);">Salida: Potencia PV</div>
+      <p>\(X^\text{PV}_t \in [0,\, 5\,\text{MW}]\). A mediodía en verano la granja
+        puede entregar los 5 MW completos; de noche es siempre 0. Esta variabilidad
+        impredecible es la que el agente debe aprender a gestionar.</p>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="ico">ℹ️</div>
+    <div><strong>¿Por qué un modelo tan simple?</strong> Para la PV no se necesita
+    una curva no lineal porque la relación irradiancia → potencia es
+    aproximadamente lineal para una granja a escala. El modelo de la WT sí
+    requiere una curva cúbica + zonas de corte porque la física del viento es
+    fundamentalmente no lineal (\(P \propto v^3\)). El paper prioriza la
+    <em>fidelidad del comportamiento agregado</em> (cuánta energía genera la granja
+    hora a hora) más que el modelo interno del panel.</div>
+  </div>
+
+  <div class="callout tip">
+    <div class="ico">💡</div>
+    <div><strong>Impacto en el agente:</strong> La PV inyecta energía en el bus DC
+    directamente (sin pasar por inversor). Cuando \(X^\text{PV}_t\) es alto (mediodía
+    soleado), la demanda neta \(X^\text{dc}_t\) baja o se vuelve negativa — hay exceso
+    de energía para almacenar. El agente aprende que <em>el pico solar de mediodía
+    es la mejor oportunidad para cargar los ESS</em>, en particular la LIB, antes de
+    la subida de precios en las horas pico de la tarde.</div>
+  </div>
+
+  <h4 style="color:var(--accent3); margin-top:28px;">💨 Curva de potencia eólica (Ec. 30)</h4>
+  <p>La potencia de cada turbina se modela en tres zonas según la velocidad del viento \(v\):</p>
+
+  <div class="eq" style="text-align:left; font-size:0.92rem;">
+    \[X^\text{WT} = \begin{cases}
+      0 & v < v_\text{ci} \;\text{o}\; v > v_\text{co} \\[4pt]
+      \tfrac{1}{2}\,\rho\,\pi\,r^2\,c_p\,v^3 & v_\text{ci} \leq v < v_r \\[4pt]
+      X^\text{WT}_\text{rated} & v_r \leq v \leq v_\text{co}
+    \end{cases}\]
+    <div class="eq-label">Ec. 30 — misma curva usada por Kuznetsova et al. [13] y Zhang et al. [16]</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>Parámetro</th><th>Símbolo</th><th>Valor</th><th>Significado</th></tr>
+      <tr><td>Velocidad de arranque</td><td>\(v_\text{ci}\)</td><td><strong>3 m/s</strong></td><td>Por debajo de esta velocidad la turbina no genera</td></tr>
+      <tr><td>Velocidad nominal</td><td>\(v_r\)</td><td><strong>12 m/s</strong></td><td>A partir de aquí la potencia se limita a la nominal</td></tr>
+      <tr><td>Velocidad de parada</td><td>\(v_\text{co}\)</td><td><strong>25 m/s</strong></td><td>Por encima de esta velocidad la turbina se detiene por seguridad</td></tr>
+      <tr><td>Radio de pala</td><td>\(r\)</td><td><strong>30 m</strong></td><td>Comparable a una turbina real de 1 MW nominal</td></tr>
+      <tr><td>Coeficiente de potencia</td><td>\(c_p\)</td><td><strong>0.4</strong></td><td>Fracción de energía cinética del viento convertida en electricidad</td></tr>
+      <tr><td>Potencia nominal</td><td>\(X^\text{WT}_\text{rated}\)</td><td><strong>1 MW / turbina</strong></td><td>Potencia máxima de cada aerogenerador</td></tr>
+      <tr><td>Número de turbinas</td><td>—</td><td><strong>2</strong></td><td>Capacidad total máxima: 2 MW</td></tr>
+    </table>
+  </div>
+
+  <div class="callout info">
+    <div class="ico">ℹ️</div>
+    <div>En la zona intermedia (\(v_\text{ci} \leq v &lt; v_r\)) la potencia crece con
+    el <strong>cubo</strong> de la velocidad. Una turbina a 6 m/s produce ~8× menos potencia
+    que a 12 m/s. La zona plana (\(v_r \leq v \leq v_\text{co}\)) limita mecánicamente la
+    potencia para proteger el generador.</div>
+  </div>
+
+  <h3 style="margin-top:36px;">Precios de energía</h3>
+
+  <div class="callout warn" style="margin-bottom:18px;">
+    <div class="ico">⚠️</div>
+    <div><strong>Asimetría clave:</strong> La microrred compra a precio dinámico
+    (hasta £144/MWh) pero <em>siempre vende a £16/MWh fijo</em>. Esta asimetría
+    es lo que hace que el problema sea no trivial y obliga a los agentes a aprender
+    a almacenar energía en vez de venderla inmediatamente.</div>
+  </div>
+
+  <div class="cards">
+    <div class="card accent">
+      <div class="card-title" style="color:var(--accent);">📈 Compra — Mercado mayorista dinámico</div>
+      <p>Los precios \(P^\text{grid}_t\) se toman de un <strong>mercado de energía
+        mayorista en tiempo real del Reino Unido</strong> con resolución horaria.</p>
+      <p style="margin-top:8px;">El precio de compra está limitado a
+        \(P_\text{max} = £144\text{/MWh}\), que es la <em>tarifa plana media
+        del Reino Unido</em>. Si el precio de mercado supera ese techo, la microrred
+        compra directamente a la red a ese precio fijo en lugar del precio de mercado.</p>
+    </div>
+    <div class="card orange">
+      <div class="card-title" style="color:var(--accent2);">📉 Venta — Feed-in Tariff fijo</div>
+      <p>La energía vendida de vuelta a la red se paga siempre a
+        \(P_\text{min} = £16\text{/MWh}\), independientemente del precio de mercado.</p>
+      <p style="margin-top:8px;">Este valor equivale a la <em>tarifa de inyección
+        para un sistema eólico de 0.1–1.5 MW instalado tras el 1 de enero de 2019</em>
+        en el Reino Unido, y es prácticamente idéntico a los £15.9/MWh de un sistema
+        PV de 0.25–1 MW instalado en la misma fecha.</p>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>Dirección</th><th>Precio</th><th>Mecanismo</th><th>Impacto en el agente</th></tr>
+      <tr>
+        <td><strong>Compra</strong></td>
+        <td>Dinámico · techo £144/MWh</td>
+        <td>Mercado mayorista UK en tiempo real</td>
+        <td>Conviene comprar cuando el precio es bajo y almacenar</td>
+      </tr>
+      <tr>
+        <td><strong>Venta</strong></td>
+        <td>Fijo £16/MWh</td>
+        <td>Feed-in tariff regulado (UK)</td>
+        <td>Vender siempre sale muy a cuenta si sustituye compra cara</td>
+      </tr>
+      <tr>
+        <td><strong>Spread máx.</strong></td>
+        <td>£128/MWh</td>
+        <td>£144 − £16</td>
+        <td>El margen de arbitraje potencial máximo por MWh almacenado</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     3. HESS
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="hess">
+  <h2 class="section-h"><span class="num">3</span> HESS — Sistema Híbrido de Almacenamiento de Energía</h2>
+
+  <p><strong>HESS</strong> = <em>Hybrid Energy Storage System</em>. Combina tres
+    tecnologías complementarias con las mismas restricciones físicas
+    (C<sub>max</sub> = 2 MWh, X<sub>max</sub> = 1 MW) pero propiedades
+    muy distintas. El agente debe aprender a explotar las fortalezas de cada
+    una según el momento del día, el precio y la generación renovable disponible.</p>
+
+  <!-- ── GLOSARIO DE ACRÓNIMOS ── -->
+  <h3>Glosario de acrónimos (columnas de la Tabla 1)</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Acrónimo</th><th>Significado completo</th><th>Qué mide</th><th>Impacto en el agente</th></tr>
+      <tr>
+        <td><strong style="color:var(--accent);">ESS</strong></td>
+        <td>Energy Storage System<br><small>Sistema de Almacenamiento de Energía</small></td>
+        <td>Tipo de tecnología de almacenamiento</td>
+        <td>Cada ESS tiene un agente propio en MADDPG. En single-agent, un único controlador gestiona los tres.</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--accent3);">η<sub>RTE</sub></strong></td>
+        <td>Round-Trip Efficiency<br><small>Eficiencia de ida y vuelta</small></td>
+        <td>Fracción de la energía que se recupera al descargar lo que se cargó.
+          Si η<sub>RTE</sub> = 95%, por cada 1 MWh cargado se recuperan 0.95 MWh al descargar.</td>
+        <td>Aparece en la Ec. 28: <code>c_t = x_t √η_RTE + c_{t-1} · η_SDC</code>.
+          Una η<sub>RTE</sub> baja (VRB = 80%) hace costoso cargar y descargar frecuentemente.</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--accent3);">η<sub>SDC</sub></strong></td>
+        <td>Self-Discharge per hour<br><small>Autodescarga por hora</small></td>
+        <td>Fracción de la carga que permanece después de una hora sin usar el ESS.
+          Si η<sub>SDC</sub> = 99%, el ESS pierde 1% de su carga almacenada cada hora.</td>
+        <td>Una autodescarga alta (SC = 99% → pierde 1%/h) penaliza el almacenamiento
+          a largo plazo. El agente aprende a no sobrecargar el SC para almacenar energía
+          varios días más tarde.</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--accent4);">Ciclos</strong></td>
+        <td>Lifecycles<br><small>Ciclos de vida totales</small></td>
+        <td>Número de ciclos completos (carga total → descarga total) que el ESS soporta antes de
+          degradarse significativamente. Un ciclo = carga de 0 a C<sub>max</sub> y vuelta a 0.</td>
+        <td>Determina directamente el costo por ciclo P<sub>CPC</sub>. Un SC tiene 100 000 ciclos
+          → es baratísimo de operar aunque se use continuamente.</td>
+      </tr>
+      <tr>
+        <td><strong style="color:var(--accent2);">P<sub>CPC</sub></strong></td>
+        <td>Cost Per Cycle<br><small>Costo por ciclo de operación</small></td>
+        <td>Coste en £ de realizar un ciclo completo de carga-descarga, calculado a partir
+          de la capacidad, el coste por kWh y el número de ciclos de vida:
+          P<sub>CPC</sub> = (capacidad × coste/kWh) / ciclos_de_vida</td>
+        <td>Se incluye como penalización en la recompensa del agente (Ec. 29).
+          Evita que el agente desgaste innecesariamente las baterías costosas (LIB, VRB)
+          cuando el beneficio energético no lo justifica.</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ── TABLA DE PARÁMETROS (Tabla 1 del paper) ── -->
+  <h3 style="margin-top:32px;">Tabla 1 del paper — Parámetros por tecnología</h3>
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th>ESS</th><th>Nombre completo</th><th>Uso óptimo</th>
+        <th title="Round-Trip Efficiency">η<sub>RTE</sub></th>
+        <th title="Self-Discharge per hour">η<sub>SDC</sub>/h</th>
+        <th title="Lifecycles — ciclos de vida">Ciclos</th>
+        <th title="Cost Per Cycle">P<sub>CPC</sub></th>
+      </tr>
+      <tr>
+        <td><strong>LIB</strong></td>
+        <td>Lithium-Ion Battery<br><small>Batería de Iones de Litio</small></td>
+        <td>Mediano plazo<br><small>horas – días</small></td>
+        <td><strong>95 %</strong></td>
+        <td>99.99 %<br><small>pérdida ≈ 0.01 %/h</small></td>
+        <td>5 000</td>
+        <td>£ 40</td>
+      </tr>
+      <tr>
+        <td><strong>VRB</strong></td>
+        <td>Vanadium Redox Battery<br><small>Batería de Flujo de Vanadio-Redox</small></td>
+        <td>Largo plazo<br><small>días – semanas</small></td>
+        <td><strong style="color:var(--accent2);">80 %</strong><br><small>peor eficiencia</small></td>
+        <td><strong style="color:var(--accent3);">100 %</strong><br><small>sin autodescarga</small></td>
+        <td>10 000</td>
+        <td>£ 40</td>
+      </tr>
+      <tr>
+        <td><strong>SC</strong></td>
+        <td>Supercapacitor<br><small>Supercondensador</small></td>
+        <td>Corto plazo<br><small>minutos – horas</small></td>
+        <td>95 %</td>
+        <td>99 %<br><small style="color:var(--accent2);">pérdida ≈ 1 %/h — alta</small></td>
+        <td><strong style="color:var(--accent3);">100 000</strong><br><small>20× más que LIB</small></td>
+        <td><strong style="color:var(--accent3);">£ 6</strong><br><small>operación casi gratis</small></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="callout tip">
+    <div class="ico">💡</div>
+    <div>
+      <strong>Cómo leer las diferencias:</strong>
+      La <strong>VRB</strong> nunca pierde carga mientras espera (η<sub>SDC</sub>=100%), pero
+      cada vez que carga/descarga pierde 20% de la energía (η<sub>RTE</sub>=80%) — ideal para
+      guardar energía varios días pero mala idea usarla a diario.
+      El <strong>SC</strong> es todo lo contrario: cicla infinidad de veces por £6 cada vez, pero
+      pierde ~1% de su carga por hora — solo sirve para las próximas horas.
+      La <strong>LIB</strong> es la más versátil: buena eficiencia, baja autodescarga y
+      precio moderado.
+    </div>
+  </div>
+
+  <div class="callout paper">
+    <div class="ico">📄</div>
+    <div><strong>Ec. 28 — Dinámica de carga:</strong>
+      \( c_t = x_t \sqrt{\eta_\text{RTE}} + c_{t-1}\cdot\eta_\text{SDC} \) —
+      La carga del ESS en el paso \(t\) es la energía cargada/descargada
+      (escalada por la raíz de η<sub>RTE</sub>) más la carga anterior reducida por
+      la autodescarga. La carga \(c_t\) está acotada a \([0,\, C_\text{max}]\).</div>
+  </div>
+
+  <h3>Costo de operación P<sub>CPC</sub> en la recompensa (Ec. 29)</h3>
+  <p>El agente es penalizado proporcionalmente al cuadrado del cambio relativo
+    de carga, multiplicado por el costo por ciclo de esa tecnología:</p>
+  <div class="eq">
+    \[R_t^\text{CPC} = 0.5\;P_\text{CPC}\left(\frac{c_t - c_{t-1}}{C_\text{max}}\right)^2\]
+    <div class="eq-label">El factor 0.5 refleja que cada paso es un semi-ciclo (no puede cargar y descargar simultáneamente)</div>
+  </div>
+
+  <div class="callout info">
+    <div class="ico">ℹ️</div>
+    <div><strong>¿Por qué se multiplica por 0.5?</strong>
+
+    <p style="margin-top:10px;">El parámetro \(P_\text{CPC}\) está definido en el
+    paper como el costo de un <strong>ciclo completo</strong>: cargar la batería
+    desde 0 hasta \(C_\text{max}\) y después descargarla de vuelta a 0.
+    Matemáticamente, eso equivale a un cambio acumulado de \(2 \times C_\text{max}\)
+    (subida + bajada).</p>
+
+    <p style="margin-top:8px;">Sin embargo, en cada paso horario el ESS solo puede
+    hacer <strong>una</strong> de las dos cosas: o cargar o descargar — nunca ambas
+    al mismo tiempo. Por tanto, cada paso representa como máximo
+    <em>la mitad</em> de un ciclo completo.</p>
+
+    <p style="margin-top:8px;">Para que la suma de todos los pasos de un ciclo
+    completo dé exactamente \(P_\text{CPC}\), hay que escalar cada paso por
+    \(\frac{1}{2}\):</p>
+
+    \[\underbrace{0.5 \cdot P_\text{CPC} \cdot \left(\frac{\Delta c}{C_\text{max}}\right)^2}_{\text{costo del semi-ciclo en 1 paso}}\]
+
+    <div class="table-wrap" style="margin-top:12px;">
+      <table>
+        <tr>
+          <th>Escenario</th>
+          <th>\(\Delta c / C_\text{max}\)</th>
+          <th>Factor cuadrático</th>
+          <th>Costo (LIB, \(P_\text{CPC}=£40\))</th>
+        </tr>
+        <tr>
+          <td>Carga del 0 al 100 % en 1 paso</td>
+          <td>1.0</td>
+          <td>\(1.0^2 = 1\)</td>
+          <td>\(0.5 \times 40 \times 1 = £20\)</td>
+        </tr>
+        <tr>
+          <td>Descarga del 100 % al 0 en 1 paso</td>
+          <td>−1.0</td>
+          <td>\((-1)^2 = 1\)</td>
+          <td>\(0.5 \times 40 \times 1 = £20\)</td>
+        </tr>
+        <tr>
+          <td style="color:#4ade80;">Ciclo completo (suma de 2 pasos)</td>
+          <td>—</td>
+          <td>—</td>
+          <td style="color:#4ade80;">\(£20 + £20 = £40 = P_\text{CPC}\) ✓</td>
+        </tr>
+        <tr>
+          <td>Cambio pequeño (10 %)</td>
+          <td>0.1</td>
+          <td>\(0.1^2 = 0.01\)</td>
+          <td>\(0.5 \times 40 \times 0.01 = £0.20\)</td>
+        </tr>
+      </table>
+    </div>
+
+    <p style="margin-top:10px;"><strong>El exponente cuadrático penaliza más los
+    cambios bruscos:</strong> un cambio del 50 % de carga cuesta
+    \(0.5^2 = 0.25\) (25 % del P_CPC), pero dos cambios del 25 % cuestan
+    \(2 \times 0.25^2 = 0.125\) (12.5 %). Los agentes aprenden a preferir
+    variaciones graduales y a usar el SC (P_CPC bajo = £6) para las
+    fluctuaciones rápidas, reservando la LIB/VRB para movimientos lentos.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     4. FUNDAMENTOS RL
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="algoritmos">
+  <h2 class="section-h"><span class="num">4</span> Fundamentos de Aprendizaje por Refuerzo</h2>
+
+  <p>En cada paso de tiempo \(t\) el agente observa \(s_t\), selecciona \(a_t\),
+    recibe \(r_t\) y transiciona a \(s_{t+1}\). El objetivo es aprender una
+    política \(\pi\) que maximice la recompensa futura descontada.</p>
+
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th>Categoría</th>
+        <th>Descripción</th>
+      </tr>
+      <tr>
+        <td><strong>Función de valor</strong></td>
+        <td>Aprende \(Q(s,a)\) o \(V(s)\) directamente. La política se deduce
+        eligiendo la acción con mayor Q.</td>
+      </tr>
+      <tr>
+        <td><strong>Gradiente de política</strong></td>
+        <td>Parametriza la política \(\pi_\theta(a|s)\) directamente y optimiza
+        subiendo el gradiente del retorno esperado.</td>
+      </tr>
+      <tr>
+        <td><strong>Actor-Crítico</strong></td>
+        <td>El <em>actor</em> \(\mu_\phi(s)\) produce acciones continuas.
+        El <em>crítico</em> \(Q_\theta(s,a)\) evalúa su calidad.
+        Aprenden en paralelo, cada uno guiando al otro.</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="callout info">
+    <div class="ico">ℹ️</div>
+    <div><strong>¿Por qué actor-crítico y no las otras dos?</strong>
+    <ul style="margin-top:8px; padding-left:18px;">
+      <li style="margin-bottom:6px;"><strong>Acción continua:</strong> La carga/descarga
+      de una batería es un valor real en kW — no hay lista finita de opciones. DQN/Rainbow
+      no pueden manejar esto sin discretizar artificialmente el espacio.</li>
+      <li style="margin-bottom:6px;"><strong>Off-policy:</strong> Actor-crítico con
+      replay buffer reutiliza cada transición muchas veces — crítico con solo 35 000
+      pasos reales disponibles.</li>
+      <li style="margin-bottom:6px;"><strong>Determinístico:</strong> DDPG produce
+      directamente \(\mu_\phi(s) \in \mathbb{R}\) sin muestrear de
+      una distribución, lo que da gradientes de menor varianza y convergencia
+      más rápida en espacios continuos.</li>
+    </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     5. DDPG
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="ddpg">
+  <h2 class="section-h"><span class="num">5</span> DDPG — Deep Deterministic Policy Gradient</h2>
+
+  <p>Método actor-crítico base del artículo. El <strong>actor</strong> \(\mu_\phi(s)\)
+    selecciona acciones; el <strong>crítico</strong> \(Q_\theta(s,a)\) evalúa su valor.</p>
+
+  <div class="algo">
+    <span class="line"><span class="kw">Algoritmo 1:</span> DDPG</span>
+    <span class="line"> 1. Inicializar crítico \(Q_\theta\), actor \(\mu_\phi\), redes objetivo \(\hat{Q}_{\hat\theta}\), \(\hat{\mu}_{\hat\phi}\)</span>
+    <span class="line"> 2. Inicializar replay buffer</span>
+    <span class="line"> 3. <span class="kw">Para</span> cada paso \(t\):</span>
+    <span class="line"> 4.   Observar estado \(s_t\)</span>
+    <span class="line"> 5.   Seleccionar acción \(a_t = \mu_\phi(s_t) + \text{ruido}\)</span>
+    <span class="line"> 6.   Ejecutar \(a_t\), observar \(r_t\) y \(s_{t+1}\)</span>
+    <span class="line"> 7.   Guardar \(\langle s_t,a_t,r_t,s_{t+1}\rangle\) en buffer</span>
+    <span class="line"> 8.   Muestrear minibatch del buffer</span>
+    <span class="line"> 9.   Target: \(y_i = r_i + \gamma\,\hat{Q}_{\hat\theta}(s_{i+1}, \hat{\mu}_{\hat\phi}(s_{i+1}))\)</span>
+    <span class="line">10.   Actualizar crítico por descenso de gradiente en \(\mathcal{L}(\theta) = \mathbb{E}[(y_i - Q_\theta(s_i,a_i))^2]\)</span>
+    <span class="line">11.   Actualizar actor por ascenso de gradiente en \(\nabla_\phi J = \mathbb{E}[\nabla_a Q_\theta \nabla_\phi \mu_\phi]\)</span>
+    <span class="line">12.   Actualización suave: \(\hat\theta \leftarrow \tau\theta + (1-\tau)\hat\theta\)</span>
+  </div>
+
+  <h3 style="color:var(--accent4);">Pasos críticos del bucle de entrenamiento (9–12)</h3>
+
+  <div class="callout info">
+    <div class="ico">🎯</div>
+    <div><strong>Paso 9 — Calcular el Target \(y_i\) (objetivo de aprendizaje):</strong>
+    <p style="margin-top:8px;">Antes de actualizar nada, se calcula cuál debería
+    ser el valor correcto del par \((s_i, a_i)\). La ecuación de Bellman dice:
+    el valor de estar en \(s_i\) y tomar \(a_i\) es la recompensa inmediata más
+    el valor des­contado del mejor futuro posible:</p>
+    \[ y_i = r_i + \gamma\,\hat{Q}_{\hat\theta}\!\left(s_{i+1},\;\hat{\mu}_{\hat\phi}(s_{i+1})\right) \]
+    <div class="table-wrap" style="margin-top:12px;">
+      <table>
+        <tr><th>Símbolo</th><th>Qué representa</th><th>Por qué importa</th></tr>
+        <tr><td>\(r_i\)</td><td>Recompensa inmediata ya observada (fija, sin red)</td><td>Ancla el aprendizaje a datos reales</td></tr>
+        <tr><td>\(\gamma = 0.99\)</td><td>Factor de descuento — el futuro vale casi tanto como el presente</td><td>Horizonte largo; el agente planifica ~100 pasos adelante</td></tr>
+        <tr><td>\(\hat{\mu}_{\hat\phi}(s_{i+1})\)</td><td>Acción que tomaría el <em>actor objetivo</em> en el siguiente estado</td><td>Usa la versión "vieja" del actor para no crear un objetivo inestable</td></tr>
+        <tr><td>\(\hat{Q}_{\hat\theta}(\cdots)\)</td><td>Valor que el <em>crítico objetivo</em> asigna a esa acción futura</td><td>Estimación conservadora del retorno futuro</td></tr>
+      </table>
+    </div>
+    <p style="margin-top:10px;"><em>Analogía:</em> Para decidir cuánto cuesta una
+    reparación hoy, le preguntás al técnico de ayer cuánto costará el mantenimiento
+    futuro — no al técnico de hoy, cuyo precio cambia mientras facturás.</p>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <div class="ico">📉</div>
+    <div><strong>Paso 10 — Actualizar el Crítico por descenso de gradiente:</strong>
+    <p style="margin-top:8px;">El crítico \(Q_\theta\) aprende a predecir el target
+    \(y_i\) minimizando el <em>error cuadrático medio</em> (TD error):</p>
+    \[ \mathcal{L}(\theta) = \mathbb{E}\!\left[\bigl(y_i - Q_\theta(s_i,a_i)\bigr)^2\right] \]
+    <ul style="margin-top:8px;padding-left:18px;">
+      <li style="margin-bottom:6px;"><strong>Es aprendizaje supervisado clásico:</strong>
+        \(y_i\) es la "etiqueta" y \(Q_\theta(s_i,a_i)\) es la "predicción". La red se
+        entrena para que sus salidas se acerquen a los targets calculados en el Paso 9.</li>
+      <li style="margin-bottom:6px;"><strong>Descenso:</strong> Queremos <em>minimizar</em>
+        el error → los pesos se mueven en la dirección opuesta al gradiente
+        \(-\nabla_\theta \mathcal{L}\).</li>
+      <li style="margin-bottom:6px;"><strong>En la microrred:</strong> El crítico aprende
+        que "batería descargando al máximo durante precio bajo → Q bajo"
+        y "guardar energía para pico de precio → Q alto".</li>
+    </ul>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <div class="ico">📈</div>
+    <div><strong>Paso 11 — Actualizar el Actor por ascenso de gradiente:</strong>
+    <p style="margin-top:8px;">El actor ajusta sus pesos para producir acciones que
+    el crítico valore más. Como el objetivo es <em>maximizar</em> Q, se sube el gradiente
+    (regla de la cadena: el crítico le dice al actor en qué dirección mover la acción):</p>
+    \[ \nabla_\phi J \approx \mathbb{E}\!\left[\nabla_a Q_\theta(s,a)\big|_{a=\mu_\phi(s)}\;\cdot\;\nabla_\phi \mu_\phi(s)\right] \]
+    </div>
+  </div>
+
+  <div class="callout key">
+    <div class="ico">🔄</div>
+    <div><strong>Paso 12 — Actualización suave / Polyak averaging:</strong>
+    <p style="margin-top:8px;">Los pesos de las redes objetivo se mezclan
+    <em>muy lentamente</em> con los pesos actuales:</p>
+    \[ \hat\theta \;\leftarrow\; \tau\,\theta + (1-\tau)\,\hat\theta \qquad \tau = 0.005 \]
+    <p style="margin-top:8px;">Con \(\tau = 0.005\), la red objetivo absorbe solo
+    el 0.5 % de los nuevos pesos en cada paso — sus valores cambian de forma casi
+    imperceptible, manteniendo el objetivo de Paso 9 prácticamente estacionario
+    mientras el aprendizaje transcurre.</p>
+    <div class="table-wrap" style="margin-top:12px;">
+      <table>
+        <tr><th>\(\tau = 1\) (copia dura)</th><th>\(\tau = 0.005\) (paper)</th><th>\(\tau \approx 0\)</th></tr>
+        <tr>
+          <td style="color:#f87171;">Red objetivo = red actual en cada paso.<br>Objetivo cambia constantemente → inestabilidad, divergencia.</td>
+          <td style="color:#4ade80;">Objetivo se mueve ~0.5 % por paso.<br>Estable. Tarda ~200 pasos en asimilar cambios grandes.</td>
+          <td style="color:#fbbf24;">Objetivo nunca se actualiza.<br>El agente aprende contra un blanco obsoleto → no converge.</td>
+        </tr>
+      </table>
+    </div>
+    <p style="margin-top:12px;"><strong>¿Por qué necesitamos redes objetivo en absoluto?</strong>
+    Si se usara la misma red \(Q_\theta\) tanto para calcular \(y_i\) <em>como</em>
+    para entrenarse, cada paso de gradiente movería simultáneamente el objetivo y
+    la predicción — como intentar apuntar a un blanco que se desplaza cada vez
+    que disparás. La red objetivo "congela" el blanco un período suficiente para
+    permitir aprendizaje estable. Se aplica la misma lógica a la red objetivo del
+    actor \(\hat\mu_{\hat\phi}\).</p>
+    </div>
+  </div>
+
+  <h3>Experience Replay Buffer y eficiencia de muestreo</h3>
+
+  <div class="callout warn">
+    <div class="ico">⚠️</div>
+    <div><strong>El problema central de este paper:</strong> Los datos reales de la
+    Universidad de Keele cubren 4 años (2014–2017) con resolución horaria = solo
+    <strong>35 040 pasos</strong> disponibles. Los algoritmos RL típicos se entrenan
+    con millones de pasos. Solo hay una oportunidad de ver cada dato real — no se
+    puede volver a recolectar experiencia.</div>
+  </div>
+
+  <div class="cards">
+    <div class="card accent">
+      <div class="card-title" style="color:var(--accent);">On-policy (ej. PPO, A3C)</div>
+      <p>Cada transición \(\langle s,a,r,s'\rangle\) se usa <strong>una sola vez</strong>
+        para actualizar la política y luego se descarta. Con solo 35 000 pasos reales
+        disponibles, el agente tendría muy pocas actualizaciones antes de agotar
+        todos los datos.</p>
+    </div>
+    <div class="card green2">
+      <div class="card-title" style="color:var(--accent3);">Off-policy + Replay Buffer (DDPG)</div>
+      <p>Cada transición se guarda en un buffer de memoria. Luego se <strong>reutiliza
+        muchas veces</strong>: en cada paso de entrenamiento se mezclan al azar
+        transiciones pasadas y recientes. Una misma experiencia puede contribuir a
+        docenas de actualizaciones de gradiente.</p>
+    </div>
+  </div>
+
+  <h4 style="color:var(--accent4);">¿Qué significa "1 sola pasada"?</h4>
+  <p>El agente recorre los 200 episodios (semanas) <em>en orden cronológico</em>,
+    exactamente como ocurrió en la realidad. No hay selección aleatoria de episodios
+    ni reinicio a semanas anteriores. Es equivalente a un operador que aprende
+    gestionando la microrred en vivo durante casi 4 años — si toma una mala decisión
+    en la semana 50, no puede volver atrás a practicar esa semana de nuevo.</p>
+
+  <div class="callout tip">
+    <div class="ico">💡</div>
+    <div><strong>Cómo el replay buffer compensa esto:</strong>
+      <ul style="margin-top:8px; padding-left:18px;">
+        <li style="margin-bottom:6px;"><strong>Reutilización:</strong> Una transición
+          vista en la semana 10 puede seguir siendo muestreada y usada para aprender
+          en la semana 150. Cada dato vale mucho más.</li>
+        <li style="margin-bottom:6px;"><strong>Decorrelación:</strong> Entrenar con
+          transiciones consecutivas introduce correlación temporal que desestabiliza
+          el aprendizaje. Muestrear aleatoriamente del buffer rompe esa correlación.</li>
+        <li style="margin-bottom:6px;"><strong>Estabilidad:</strong> La mezcla de
+          experiencias antiguas y recientes evita que el agente "olvide" patrones
+          de semanas anteriores al aprender los patrones actuales
+          (<em>catastrophic forgetting</em>).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>Aspecto</th><th>Sin replay (on-policy)</th><th>Con replay (off-policy)</th></tr>
+      <tr><td>Uso de cada dato</td><td>1 vez y se descarta</td><td>Decenas de veces (muestreo aleatorio)</td></tr>
+      <tr><td>Actualizaciones con 35 000 pasos</td><td>~35 000</td><td>Cientos de miles</td></tr>
+      <tr><td>Correlación temporal</td><td>Alta — datos consecutivos</td><td>Baja — mezcla aleatoria del buffer</td></tr>
+      <tr><td>Memoria necesaria</td><td>Mínima</td><td>Buffer de N transiciones (ej. 100 000)</td></tr>
+      <tr><td>Algoritmos típicos</td><td>PPO, A3C, REINFORCE</td><td>DDPG, TD3, D3PG, DQN</td></tr>
+    </table>
+  </div>
+
+  <div class="callout paper">
+    <div class="ico">📄</div>
+    <div><strong>Paper §4.3:</strong> "The agent begins learning after 500 steps to
+    build up the replay buffer and takes uniformly random actions until 1000 steps
+    so that the initial transitions are not biased by the randomly initialised weights
+    of the actor network." — Los primeros 1000 pasos llenan el buffer con experiencias
+    no sesgadas antes de activar el aprendizaje.</div>
+  </div>
+
+  <h3>NoisyNet — exploración adaptativa</h3>
+
+  <div class="callout key">
+    <div class="ico">🔊</div>
+    <div><strong>¿Qué problema resuelve en este paper?</strong>
+    <p style="margin-top:8px;">La microrred necesita que los agentes <em>exploren</em>
+    diferentes estrategias de carga/descarga para descubrir cuándo conviene guardar
+    energía y cuándo venderla. Pero también necesita que esa exploración
+    <strong>disminuya a medida que el agente ya aprendió</strong> — seguir
+    explorando en exceso al final del entrenamiento es perjudicial.</p>
+    <p style="margin-top:8px;">La solución del paper: reemplazar las capas
+    <code>nn.Linear</code> del actor por capas <strong>NoisyLinear</strong>, donde
+    el nivel de ruido es un parámetro más de la red que se entrena con
+    retropropagación. No hay ningún hiperparámetro de decaimiento que ajustar.</p>
+    </div>
+  </div>
+
+  <p>Cada peso y sesgo de la capa tiene una parte <em>determinística</em>
+  (\(\mu\)) y una parte <em>ruidosa</em> cuya magnitud (\(\sigma\)) la red aprende:</p>
+
+  <div class="eq">
+    \[w = \mu_w + \sigma_w \odot \varepsilon_w \qquad b = \mu_b + \sigma_b \odot \varepsilon_b\]
+    <div class="eq-label">Pesos efectivos con ruido factorizado — Fortunato et al. 2017</div>
+  </div>
+
+  <div class="cards">
+    <div class="card" style="background:var(--surface);">
+      <div class="card-title" style="color:var(--accent);">\(\mu_w,\; \mu_b\)</div>
+      <p>Parte determinística — los pesos "normales" que aprende la red.<br>
+      Suben a través del gradiente como cualquier <code>nn.Linear</code>.</p>
+    </div>
+    <div class="card" style="background:var(--surface);">
+      <div class="card-title" style="color:var(--accent2);">\(\sigma_w,\; \sigma_b\)</div>
+      <p>Escala del ruido — también parámetros entrenables.<br>
+      La red los baja automáticamente cuando ya "sabe qué hacer" en ese estado,
+      y los mantiene altos cuando aún no ha aprendido.</p>
+    </div>
+    <div class="card" style="background:var(--surface);">
+      <div class="card-title" style="color:var(--accent3);">\(\varepsilon_w,\; \varepsilon_b\)</div>
+      <p>Ruido gaussiano muestreado en cada forward pass.<br>
+      Factorizado: un vector por fila + un vector por columna → solo
+      \(p+q\) muestras en vez de \(p \times q\).</p>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <div class="ico">💡</div>
+    <div><strong>¿Qué gana el agente con esto?</strong>
+      <ul style="margin-top:8px;padding-left:18px;">
+        <li style="margin-bottom:6px;"><strong>Exploración proporcional a la incertidumbre:</strong>
+          Al inicio del entrenamiento \(\sigma\) es grande → el agente varía sus
+          acciones ampliamente (explora). A medida que converge, el gradiente empuja
+          \(\sigma\) hacia cero → la política se vuelve casi determinística.</li>
+        <li style="margin-bottom:6px;"><strong>Exploración localizada por estado:</strong>
+          En estados conocidos (ej. mediodía de verano con batería llena) la red
+          aprende a usar \(\sigma\) bajo. En estados raros (ej. temperatura extrema
+          + precio de pico) mantiene \(\sigma\) alto para seguir explorando.</li>
+        <li style="margin-bottom:6px;"><strong>Sin hiperparámetros de exploración:</strong>
+          No hay que definir un schedule de decaimiento del ruido — el propio
+          entrenamiento se encarga.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     5b. VARIANTES MULTI-AGENTE
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="variantes">
+  <h2 class="section-h"><span class="num">5b</span> Variantes multi-agente implementadas</h2>
+
+  <div class="callout key">
+    <div class="ico">📌</div>
+    <div>
+      <strong>CTDE — Centralised Training with Decentralised Execution</strong>
+      <em style="display:block;margin-top:4px;color:#94a3b8;">(Aprendizaje centralizado con ejecución descentralizada)</em>
+      <p style="margin-top:10px;">Principio fundamental de MADDPG, introducido en el
+      <strong>§3.3 del paper</strong>. Cita literal:</p>
+      <blockquote style="border-left:3px solid var(--accent);margin:10px 0 0 0;padding:8px 14px;font-style:italic;color:#cbd5e1;">
+        "MADDPG looks to solve this by using the principle of <strong>centralised
+        learning with decentralised execution</strong>. Each agent selects its own
+        action based on its own observations during the execution phase, but the
+        architecture of the DDPG critic allows each agent to evaluate performance
+        by observing the actions taken by all other agents, thus solving the problem
+        where agents may perceive the environment as non-stationary."
+      </blockquote>
+    </div>
+  </div>
+
+  <div class="cards">
+    <div class="card accent">
+      <div class="card-title" style="color:var(--cyan);">🏋️ C — Centralised <em>Training</em></div>
+      <p>Durante el entrenamiento, el <strong>crítico</strong> de cada agente recibe
+      el estado completo \((o^1,\ldots,o^N)\) y las acciones de
+      <strong>todos</strong> los agentes \((a^1,\ldots,a^N)\). Esto le da una
+      visión global del sistema para calcular gradientes más fiables.</p>
+      <p style="margin-top:8px;font-size:0.82rem;color:#94a3b8;">Solo existe durante
+      el entrenamiento — en producción este canal de información <em>no está
+      disponible</em>.</p>
+    </div>
+    <div class="card green2">
+      <div class="card-title" style="color:var(--accent3);">🚀 DE — Decentralised <em>Execution</em></div>
+      <p>En producción (ejecución real), cada <strong>actor</strong> solo puede
+      leer sus propias observaciones locales \(o^i\) para tomar la acción
+      \(a^i = \mu_\phi^i(o^i)\). Los agentes no se comunican entre sí.</p>
+      <p style="margin-top:8px;font-size:0.82rem;color:#94a3b8;">Esto es realista:
+      cada ESS solo conoce su propio SoC, no los estados internos de las demás
+      baterías.</p>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="ico">❓</div>
+    <div><strong>¿Por qué CTDE resuelve la no-estacionariedad?</strong>
+    <p style="margin-top:8px;">En un MAS puro, el entorno parece no estacionario
+    desde la perspectiva de un solo agente: puede observar el mismo estado, tomar
+    la misma acción, y recibir una recompensa completamente distinta porque
+    otro agente cambió su comportamiento. Esto hace que el aprendizaje sea
+    extremadamente difícil.</p>
+    <p style="margin-top:8px;">El crítico centralizado <em>resuelve</em> esto porque
+    condiciona su estimación de Q sobre las acciones de <strong>todos</strong>
+    los agentes — el entorno ya no parece no estacionario desde la perspectiva
+    del crítico.</p>
+    </div>
+  </div>
+
+  <p>El paper implementa tres variantes multi-agente, todas construidas sobre CTDE.
+  Cada una combina la arquitectura MADDPG con las mejoras de D3PG y TD3
+  respectivamente. La idea es identificar cuál combinación produce el mayor
+  ahorro en la microrred real:</p>
+
+  <p>Todas comparten el esquema <strong>actor local / crítico centralizado</strong>:
+  el actor de cada agente solo ve sus propias observaciones mientras que su crítico
+  recibe el estado global y las acciones de todos para calcular gradientes
+  más fiables. Lo que difiere es <em>cómo</em> estima el valor el crítico:</p>
+
+  <div class="cards">
+    <div class="card purple">
+      <div class="card-title" style="color:var(--purple);">MADDPG</div>
+      <p><strong>Base: DDPG multi-agente.</strong><br>
+      El crítico centralizado estima un único valor esperado
+      \(\mathbb{E}[Q(o_\text{all}, a_\text{all})]\). Es el punto de partida más
+      simple: crítico escalar, una sola red objetivo por agente.</p>
+      <p style="margin-top:8px;font-size:0.82rem;color:#94a3b8;">
+        Limitación: colapsa toda la incertidumbre del retorno en un promedio.
+        En mercados de energía con precios muy variables esto puede sub-aprender.
+      </p>
+    </div>
+    <div class="card accent">
+      <div class="card-title" style="color:var(--accent);">MAD3PG</div>
+      <p><strong>Base: D3PG multi-agente.</strong><br>
+      El crítico centralizado estima la <em>distribución completa</em> de retornos
+      \(Z(o_\text{all}, a_\text{all})\) sobre \(N_\text{atoms}\) átomos.
+      Cada agente "sabe" no solo cuánto espera ganar, sino también con qué
+      incertidumbre.</p>
+      <p style="margin-top:8px;font-size:0.82rem;color:#94a3b8;">
+        Ventaja: más robusto ante la volatilidad de precios del mercado mayorista.
+        <strong>★ Mejor en CS1</strong> (+55.4 % sobre DDPG).
+      </p>
+    </div>
+    <div class="card green2">
+      <div class="card-title" style="color:var(--accent3);">MATD3</div>
+      <p><strong>Base: TD3 multi-agente.</strong><br>
+      Cada agente tiene <em>dos</em> críticos centralizados
+      \(Q^1, Q^2\). Para calcular el target se usa el mínimo de ambos
+      (\(\min(Q^1, Q^2)\)), lo que corta el sesgo optimista que sobreestima
+      el valor de acciones ruidosas.</p>
+      <p style="margin-top:8px;font-size:0.82rem;color:#94a3b8;">
+        Ventaja: reduce la sobreestimación de Q. <strong>★ Mejor en CS2</strong>
+        (+27 % sobre DDPG, xMG con competencia entre microrredes).
+      </p>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <div class="ico">🔗</div>
+    <div><strong>¿Por qué el mismo framework sirve para las tres variantes?</strong>
+    Todas heredan el protocolo CTDE: durante el entrenamiento los críticos acceden
+    al estado global (centralizado), pero en producción cada actor solo usa su
+    observación local (descentralizado). La diferencia está exclusivamente en la
+    arquitectura interna del crítico: escalar ↔ distributional ↔ doble escalar.</div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>Algoritmo</th><th>Base</th><th>Tipo de crítico</th><th>Sesgo Q</th><th>Mejor en</th></tr>
+      <tr>
+        <td><strong>MADDPG</strong></td><td>DDPG</td>
+        <td>Escalar centralizado</td>
+        <td style="color:#fbbf24;">Medio</td>
+        <td>Línea base</td>
+      </tr>
+      <tr>
+        <td><strong>MAD3PG</strong></td><td>D3PG</td>
+        <td>Distributional centralizado</td>
+        <td style="color:#4ade80;">Bajo — distribución completa</td>
+        <td>CS1 (HESS solo) ★</td>
+      </tr>
+      <tr>
+        <td><strong>MATD3</strong></td><td>TD3</td>
+        <td>Doble escalar centralizado</td>
+        <td style="color:#4ade80;">Bajo — min(Q¹,Q²)</td>
+        <td>CS2 (xMG competitivo) ★</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     6. D3PG
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="d3pg">
+  <h2 class="section-h"><span class="num">6</span> D3PG — Distributional DDPG</h2>
+
+  <p>DDPG estándar estima el <em>valor esperado</em> \(\mathbb{E}[Q(s,a)]\).
+    En entornos con precios dinámicos esto puede sobre-generalizar.
+    D3PG reemplaza la expectativa por la <strong>distribución completa de retornos</strong>
+    \(Z(s,a)\) sobre un soporte discreto de \(N_\text{atoms}\) átomos.</p>
+
+  <div class="callout tip">
+    <div class="ico">💡</div>
+    <div>En lugar de predecir <em>"el valor promedio esperado"</em>, D3PG predice
+    <em>"toda la distribución de posibles retornos"</em>. Esto es más robusto ante la
+    incertidumbre del precio de la energía que varía cada hora.</div>
+  </div>
+
+  <p>La pérdida usa la divergencia de Kullback-Leibler entre la distribución proyectada
+    y la predicha:</p>
+  <div class="eq">
+    \[\mathcal{L}_i(\theta) = D_\text{KL}\!\left(\Phi\hat{Z}_{\hat\theta}(s_i,a_i) \,\|\, Z_\theta(s_i,a_i)\right)\]
+    <div class="eq-label">Pérdida KL distributional — D3PG (distributional Bellman operator)</div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     7. TD3
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="td3">
+  <h2 class="section-h"><span class="num">7</span> TD3 — Twin Delayed DDPG</h2>
+
+  <p>DDPG tiende a <strong>sobreestimar</strong> los valores Q — los agentes eligen
+    acciones que creen más valiosas (de forma equivocada). TD3 resuelve esto con:</p>
+
+  <div class="cards">
+    <div class="card accent">
+      <div class="card-title">Twin Critics (Doble Crítico)</div>
+      <p>Dos críticos independientes \(Q_{\theta_1}\), \(Q_{\theta_2}\). El target
+        toma el <strong>mínimo</strong> para evitar sobreestimación:</p>
+      <p>\(y_i = r_i + \gamma \min_k \hat{Q}_{\hat\theta_k}(s_{i+1}, \hat{\mu}_{\hat\phi}(s_{i+1}))\)</p>
+    </div>
+    <div class="card orange">
+      <div class="card-title">Delayed Actor Update</div>
+      <p>El actor y las redes objetivo se actualizan <strong>cada 2 pasos del crítico</strong>
+        (delay=2) para reducir el error de la actualización de política.</p>
+    </div>
+    <div class="card green2">
+      <div class="card-title">Policy Gradient (Actor)</div>
+      <p>El gradiente del actor usa solo el primer crítico:
+        \(\nabla_\phi J = \mathbb{E}[\nabla_a Q_{\theta_1}\nabla_\phi\mu_\phi]\)</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     8. MADDPG
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="maddpg">
+  <h2 class="section-h"><span class="num">8</span> MADDPG — Multi-Agent DDPG</h2>
+
+  <div class="callout key">
+    <div class="ico">🌐</div>
+    <div><strong>Principio clave:</strong> <em>Entrenamiento centralizado, ejecución
+    descentralizada</em> (CTDE). Cada agente actúa usando solo sus propias observaciones,
+    pero aprende con el crítico que ve las acciones de <strong>todos</strong> los agentes.</div>
+  </div>
+
+  <div class="cards">
+    <div class="card purple">
+      <div class="card-title" style="color:var(--purple);">🎭 Actor local</div>
+      <p>Cada agente tiene su propio actor \(\mu_\phi^i(o^i)\).
+        Solo recibe observaciones locales. Produce una acción continua.</p>
+    </div>
+    <div class="card accent">
+      <div class="card-title" style="color:var(--cyan);">🎯 Crítico centralizado</div>
+      <p>El crítico de cada agente recibe el estado global \((o^1,...,o^N)\)
+        y las acciones de <strong>todos</strong> los agentes \((a^1,...,a^N)\).</p>
+    </div>
+  </div>
+
+  <h3>¿Por qué es superior al single-agent?</h3>
+  <p>En un MAS, el entorno parece <em>no estacionario</em> desde la vista de un solo
+    agente: puede observar el mismo estado y tomar la misma acción, pero recibir
+    una recompensa diferente porque otros agentes cambiaron su comportamiento.
+    El crítico centralizado de MADDPG resuelve esto al considerar las acciones de
+    todos los agentes en la evaluación.</p>
+
+  <h3>Recompensa de contribución marginal (Ec. 27)</h3>
+  <p>Cada agente ESS es recompensado según cuánto ahorró <em>en comparación con
+    si ese ESS específico hubiera permanecido inactivo</em>:
+  </p>
+  <div class="eq">
+    \[r_t = 0.01 \cdot N_\text{agents} \cdot R_\text{sum}\]
+    <div class="eq-label">R_sum incluye: ahorro en red · beneficio MGA · − costo CPC · − autodescarga · − penalización capacidad</div>
+  </div>
+
+  <div class="callout tip">
+    <div class="ico">💡</div>
+    <div>Esto sigue el principio de <strong>contribución marginal en teoría de juegos
+    cooperativos</strong>: cada jugador es recompensado por su contribución incremental
+    al objetivo común, no por el resultado global que tampoco controla individualmente.</div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     9. ESTADOS
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="estados">
+  <h2 class="section-h"><span class="num">9</span> Estados y observaciones</h2>
+
+  <p>Los agentes observan el entorno mediante vectores de estado escalados a [0,1].
+    Las redes de predicción (ANN de regresión) proveen valores del siguiente paso.</p>
+
+  <h3>Agente ESS (Caso 1 y 2)</h3>
+  <div class="eq" style="text-align:left; font-size:0.88rem;">
+    \[s_t^\text{ESS} = \left[c_t^\text{LIB},\ c_t^\text{SC},\ c_t^\text{VRB},\
+    P_t^\text{grid},\ \dot{P}_{t+1}^\text{grid},\ P_t^\text{MGA},\ X_t^\text{MGA},\
+    X_t^D,\ \dot{X}_{t+1}^D,\ X_t^\text{PV},\ \dot{X}_{t+1}^\text{PV},\
+    X_t^\text{WT},\ \dot{X}_{t+1}^\text{WT},\ H_t^\text{day},\ H_t^\text{week}\right]\]
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th>#</th>
+        <th>Símbolo</th>
+        <th>Nombre completo</th>
+        <th>Qué representa</th>
+        <th>Rango</th>
+      </tr>
+      <tr>
+        <td>1</td><td>\(c_t^\text{LIB}\)</td>
+        <td>State of Charge — Lithium-Ion Battery</td>
+        <td>Nivel de carga actual de la batería de iones de litio</td>
+        <td>[0, 1]</td>
+      </tr>
+      <tr>
+        <td>2</td><td>\(c_t^\text{SC}\)</td>
+        <td>State of Charge — Supercapacitor</td>
+        <td>Nivel de carga actual del supercondensador</td>
+        <td>[0, 1]</td>
+      </tr>
+      <tr>
+        <td>3</td><td>\(c_t^\text{VRB}\)</td>
+        <td>State of Charge — Vanadium Redox Battery</td>
+        <td>Nivel de carga actual de la batería de flujo de vanadio</td>
+        <td>[0, 1]</td>
+      </tr>
+      <tr>
+        <td>4</td><td>\(P_t^\text{grid}\)</td>
+        <td>Grid Price (current)</td>
+        <td>Precio actual de la electricidad en el mercado mayorista</td>
+        <td>normalizado</td>
+      </tr>
+      <tr>
+        <td>5</td><td>\(\dot{P}_{t+1}^\text{grid}\)</td>
+        <td>Grid Price (predicted next step)</td>
+        <td>Precio predicho para la próxima hora (salida de la ANN predictora)</td>
+        <td>normalizado</td>
+      </tr>
+      <tr>
+        <td>6</td><td>\(P_t^\text{MGA}\)</td>
+        <td>MicroGrid Aggregator Price (current)</td>
+        <td>Precio actual al que el MGA vende energía a las xMGs</td>
+        <td>normalizado</td>
+      </tr>
+      <tr>
+        <td>7</td><td>\(X_t^\text{MGA}\)</td>
+        <td>MGA Export Volume (current)</td>
+        <td>Volumen de energía que el MGA exporta actualmente a xMGs</td>
+        <td>[0, 1]</td>
+      </tr>
+      <tr>
+        <td>8</td><td>\(X_t^D\)</td>
+        <td>Demand (current)</td>
+        <td>Demanda eléctrica actual de la microrred principal</td>
+        <td>[0, 1]</td>
+      </tr>
+      <tr>
+        <td>9</td><td>\(\dot{X}_{t+1}^D\)</td>
+        <td>Demand (predicted next step)</td>
+        <td>Demanda predicha para la próxima hora</td>
+        <td>[0, 1]</td>
+      </tr>
+      <tr>
+        <td>10</td><td>\(X_t^\text{PV}\)</td>
+        <td>Photovoltaic Power (current)</td>
+        <td>Generación solar fotovoltaica actual</td>
+        <td>[0, 1]</td>
+      </tr>
+      <tr>
+        <td>11</td><td>\(\dot{X}_{t+1}^\text{PV}\)</td>
+        <td>PV Power (predicted next step)</td>
+        <td>Generación PV predicha para la próxima hora</td>
+        <td>[0, 1]</td>
+      </tr>
+      <tr>
+        <td>12</td><td>\(X_t^\text{WT}\)</td>
+        <td>Wind Turbine Power (current)</td>
+        <td>Generación eólica actual</td>
+        <td>[0, 1]</td>
+      </tr>
+      <tr>
+        <td>13</td><td>\(\dot{X}_{t+1}^\text{WT}\)</td>
+        <td>Wind Power (predicted next step)</td>
+        <td>Generación eólica predicha para la próxima hora</td>
+        <td>[0, 1]</td>
+      </tr>
+      <tr>
+        <td>14</td><td>\(H_t^\text{day}\)</td>
+        <td>Hour of Day</td>
+        <td>Hora del día codificada (0–23 → normalizado). Permite detectar patrones diarios (picos mañana/tarde).</td>
+        <td>[0, 1]</td>
+      </tr>
+      <tr>
+        <td>15</td><td>\(H_t^\text{week}\)</td>
+        <td>Hour of Week</td>
+        <td>Hora de la semana codificada (0–167 → normalizado). Permite distinguir días laborables de fines de semana.</td>
+        <td>[0, 1]</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="callout info">
+    <div class="ico">ℹ️</div>
+    <div><strong>Nota sobre el punto (\(\dot{\ }\)):</strong> Los símbolos con punto
+    superior como \(\dot{P}_{t+1}\) son <em>predicciones del paso siguiente</em>
+    generadas por redes ANN de regresión entrenadas por separado. El agente puede
+    "ver el futuro inmediato" con cierto margen de error, lo que le permite
+    anticipar subidas de precio o picos de generación solar.</div>
+  </div>
+
+  <h3>Agente xMG (Caso 2)</h3>
+  <div class="eq" style="text-align:left; font-size:0.88rem;">
+    \[s_t^\text{xMG} = \left[P_t^\text{MGA},\ X_t^\text{MGA},\ X_t^{xMG,D},\ H_t^\text{day},\ H_t^\text{week}\right]\]
+    <div class="eq-label">Las xMGs no ven el estado completo — privacidad y competencia</div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     10. ACCIONES
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="acciones">
+  <h2 class="section-h"><span class="num">10</span> Acciones de los agentes</h2>
+
+  <p>Todas las acciones están en el rango \([-1, 1]\) (salida del actor con tanh).
+    El entorno las rescala a valores físicos.</p>
+
+  <div class="table-wrap">
+    <table>
+      <tr><th>Agente</th><th>Acción</th><th>Rango físico</th><th>Ecuación</th></tr>
+      <tr>
+        <td>ESS (LIB/VRB/SC)</td>
+        <td>Carga/descarga</td>
+        <td>−1 MW … +1 MW</td>
+        <td>Ec. 16</td>
+      </tr>
+      <tr>
+        <td>MGA (acción 1)</td>
+        <td>Volumen de venta</td>
+        <td>0 … X_max^MGA</td>
+        <td>Ec. 17</td>
+      </tr>
+      <tr>
+        <td>MGA (acción 2)</td>
+        <td>Precio de reserva</td>
+        <td>£16 … £144/MWh</td>
+        <td>Ec. 18</td>
+      </tr>
+      <tr>
+        <td>xMG (acción 1)</td>
+        <td>Volumen de puja</td>
+        <td>0 … X_max^xMG</td>
+        <td>Ec. 19</td>
+      </tr>
+      <tr>
+        <td>xMG (acción 2)</td>
+        <td>Precio de puja</td>
+        <td>£16 … £144/MWh</td>
+        <td>Ec. 20</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     11. RECOMPENSAS
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="recompensas">
+  <h2 class="section-h"><span class="num">11</span> Función de recompensa</h2>
+
+  <h3>Demanda neta y energía importada</h3>
+  <div class="eq">
+    \[X_t^\text{dc} = x_t^\text{LIB}\eta^\text{LIB}_\text{RTE} + x_t^\text{VRB}\eta^\text{VRB}_\text{RTE} + x_t^\text{SC}\eta^\text{SC}_\text{RTE} - X_t^\text{PV}\]
+    <div class="eq-label">Flujo neto en la línea DC (Ec. 21)</div>
+  </div>
+
+  <h3>Recompensa por costo de red</h3>
+  <div class="eq">
+    \[R_t^\text{in} = -X_t^\text{in} \cdot P_t^\text{grid}\]
+    <div class="eq-label">Negativo porque comprar es costoso; vender es positivo (Ec. 23)</div>
+  </div>
+
+  <h3>Penalizaciones adicionales del agente ESS</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Término</th><th>Descripción</th></tr>
+      <tr><td>\(R_t^\text{CPC}\)</td><td>Costo de operación proporcional al cuadrado del cambio de carga</td></tr>
+      <tr><td>\(R_t^\text{SDC}\)</td><td>Penalización por autodescarga proporcional a la carga actual</td></tr>
+      <tr><td>\(R_t^\text{cap}\)</td><td>Penalización cuadrática si la acción excede los límites de capacidad</td></tr>
+      <tr><td>\(R^\text{base}\)</td><td>Baseline de normalización (si el agente hubiera dormido)</td></tr>
+    </table>
+  </div>
+
+  <h3>Subasta MGA (Algoritmo 2)</h3>
+  <pre><code><span class="kw">mientras</span> XMGA > 0 <span class="kw">y</span> hay xMGs con energía disponible:
+    i = xMG con mayor precio de puja
+    <span class="kw">si</span> puja_i > precio_reserva_MGA:
+        vender min(XMGA, volumen_i) a precio_i
+        R_MGA += 0.8 * precio_i * volumen_vendido
+    eliminar xMG i de la subasta
+Vender resto al precio_min → R_MGA += Pmin * XMGA_restante</code></pre>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     12. PARÁMETROS DEL ENTORNO
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="parametros">
+  <h2 class="section-h"><span class="num">12</span> Parámetros del entorno</h2>
+
+  <div class="cards">
+    <div class="card accent">
+      <div class="card-title">Paso de tiempo</div>
+      <p>1 hora real → 168 pasos = 1 semana = 1 episodio</p>
+    </div>
+    <div class="card green2">
+      <div class="card-title">Total de entrenamiento</div>
+      <p>200 episodios (semanas) = 33 600 pasos totales. Primeros 100: búsqueda de hiperparámetros.</p>
+    </div>
+    <div class="card orange">
+      <div class="card-title">Inicio de aprendizaje</div>
+      <p>Aprende desde el paso 500. Acciones aleatorias hasta el paso 1000 (llenado del buffer).</p>
+    </div>
+  </div>
+
+  <h3>Hiperparámetros (Tabla 2 del paper)</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Hiperparámetro</th><th>Valor</th></tr>
+      <tr><td>Actor Learning Rate</td><td>5 × 10⁻⁴</td></tr>
+      <tr><td>Critic Learning Rate</td><td>1 × 10⁻³</td></tr>
+      <tr><td>Capas ocultas</td><td>2 × 256 (ReLU)</td></tr>
+      <tr><td>Batch Size</td><td>64</td></tr>
+      <tr><td>Target update τ</td><td>0.005</td></tr>
+      <tr><td>Discount γ</td><td>0.99</td></tr>
+      <tr><td>D3PG V_min, V_max</td><td>−10, 10</td></tr>
+      <tr><td>TD3 Actor Delay</td><td>2 pasos</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     13. CASO DE ESTUDIO 1
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="cs1">
+  <h2 class="section-h"><span class="num">13</span> Caso de Estudio 1 — Control HESS</h2>
+
+  <p>Solo los agentes ESS (LIB, VRB, SC). El objetivo es minimizar la factura
+    energética de la microrred principal maximizando la utilización de RES
+    y respondiendo a los precios dinámicos del mercado.</p>
+
+  <div class="callout tip">
+    <div class="ico">💡</div>
+    <div>Los agentes aprenden que la energía solar de mediodía conviene almacenarla
+    (especialmente en LIB) para usarla en las horas pico de precio (tarde/noche).
+    También aprenden a cargar temprano en la mañana cuando los precios son más bajos.</div>
+  </div>
+
+  <h3>Comportamiento típico aprendido</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Agente</th><th>Comportamiento predominante</th></tr>
+      <tr><td>LIB</td><td>Almacenamiento mediano plazo — el más usado por su eficiencia global</td></tr>
+      <tr><td>SC</td><td>Almacenamiento corto plazo — responde a fluctuaciones diarias de RES</td></tr>
+      <tr><td>VRB</td><td>Casi siempre inactivo — costoso en ciclos y baja eficiencia no justifica su uso frecuente</td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     14. CASO DE ESTUDIO 2
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="cs2">
+  <h2 class="section-h"><span class="num">14</span> Caso de Estudio 2 — HESS + Trading con xMGs</h2>
+
+  <p>Se añade el agente MGA y 5 microrredes externas. La microrred puede vender
+    energía a las xMGs a un precio mayor que el feed-in tariff,
+    aumentando considerablemente los ingresos.</p>
+
+  <div class="cards">
+    <div class="card accent">
+      <div class="card-title">MGA — Aggregator</div>
+      <p>Decide: <strong>cuánto vender</strong> + <strong>precio de reserva</strong>.
+        Aprende a restringir el volumen para forzar competencia entre xMGs.</p>
+    </div>
+    <div class="card orange">
+      <div class="card-title">xMGs — Compradores</div>
+      <p>Deciden: <strong>volumen a comprar</strong> + <strong>precio de puja</strong>.
+        Aprenden que comprar al MGA es más barato que a la red (£144/MWh).</p>
+    </div>
+    <div class="card green2">
+      <div class="card-title">Equilibrio emergente</div>
+      <p>Tras ~100 episodios, el sistema converge: MGA restringe volumen para
+        maximizar precio medio; xMGs pujan competitivamente.</p>
+    </div>
+  </div>
+
+  <h3>Flujo de la subasta (por paso horario)</h3>
+  <pre><code>1. MGA anuncia volumen X^MGA y precio reserva P^MGA
+2. Las 5 xMGs envían simultáneamente sus pujas (volumen + precio)
+3. Subasta secuencial: se asigna de mayor a menor precio de puja
+4. Condición: precio_puja > precio_reserva MGA → se ejecuta la venta
+5. Energía no vendida → feed-in tariff £16/MWh
+6. xMGs: demanda no cubierta → compran a la red £144/MWh</code></pre>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     15. BENCHMARKS
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="benchmarks-sec">
+  <h2 class="section-h"><span class="num">15</span> Benchmarks</h2>
+
+  <div class="cards">
+    <div class="card purple">
+      <div class="card-title" style="color:var(--purple);">🧮 RBM — Rule-Based Model</div>
+      <p>Reglas deterministas: carga el ESS cuando RES &gt; demanda, descarga cuando
+        hay déficit. Prioridad fija: SC → LIB → VRB. <em>No aprende nada.</em>
+        Problema: inactivo cuando RES nunca supera la demanda.</p>
+    </div>
+    <div class="card accent">
+      <div class="card-title" style="color:var(--cyan);">🧠 MADQN — Multi-Agent DQN</div>
+      <p>3 agentes DQN independientes (uno por ESS). Espacio de acciones
+        <strong>discreto</strong> (5 niveles). Usa Double DQN + replay buffer.
+        Limitado por la granularidad discreta.</p>
+    </div>
+    <div class="card green2">
+      <div class="card-title" style="color:var(--accent3);">🌈 MARainbow</div>
+      <p>Como MADQN pero con 9 acciones y técnicas Rainbow (PER, distributional,
+        Noisy). Mejor que MADQN pero inferior a los métodos DDPG continuos.</p>
+    </div>
+  </div>
+
+  <div class="callout warn">
+    <div class="ico">⚠️</div>
+    <div><strong>Limitación fundamental:</strong> Los benchmarks DQN usan espacio
+    discreto. Para controlar carga en MW necesitas acción continua. La limitación
+    no es del algoritmo DQN en sí, sino de que el espacio de acciones discreto
+    reduce la capacidad de control preciso.</div>
+  </div>
+
+  <a class="doc-ref" href="simulacion/benchmarks_explicacion.html" target="_blank">
+    <div class="doc-ref-left">
+      <div class="doc-ref-ico">🧠</div>
+      <div>
+        <div class="doc-ref-title">Explicación completa de benchmarks.py</div>
+        <div class="doc-ref-sub">RBMAgent · MADQNSystem · _DQNSingleAgent · Double DQN · hiperparámetros · mapeo de acciones</div>
+      </div>
+    </div>
+    <div class="doc-ref-arrow">↗ Abrir documento</div>
+  </a>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     16. RESULTADOS
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="resultados">
+  <h2 class="section-h"><span class="num">16</span> Resultados</h2>
+
+  <h3>Caso de Estudio 1 — Control HESS (Tabla 3)</h3>
+
+  <p>Solo los 3 agentes ESS operan sobre la microrred principal. No hay xMGs ni
+  mercado local. El único ingreso es el <strong>arbitraje contra el precio de red</strong>:
+  cargar cuando el precio es bajo, descargar cuando es alto.</p>
+
+  <div class="callout info">
+    <div class="ico">📋</div>
+    <div><strong>Cómo leer las columnas:</strong>
+      <ul style="margin-top:8px;padding-left:18px;">
+        <li style="margin-bottom:5px;"><strong>Ahorros brutos (£k):</strong> Diferencia
+        entre la factura de red sin control inteligente (caso base) y con el agente.
+        No descuenta el desgaste de las baterías.</li>
+        <li style="margin-bottom:5px;"><strong>Ahorros ajustados (£k):</strong>
+        Ahorros brutos menos el coste acumulado de ciclado de los ESS
+        (\(\sum R^\text{CPC}_t\)). Es la métrica real de beneficio neto.</li>
+        <li style="margin-bottom:5px;"><strong>vs DDPG:</strong> Mejora porcentual
+        sobre la línea base DDPG single-agent, calculada sobre ahorros ajustados.</li>
+        <li style="margin-bottom:5px;"><strong>Pérdida ESS (%):</strong> Proporción
+        del ahorro bruto consumida por costos de ciclado. Cuanto más bajo, mejor
+        gestión del desgaste.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th>Algoritmo</th><th>Ahorros brutos (£k)</th>
+        <th>Ahorros ajustados (£k)</th><th>vs DDPG</th><th>Pérdida ESS</th>
+      </tr>
+      <tr><td>DDPG</td><td>42.92</td><td>34.39</td><td>—</td><td>19.87%</td></tr>
+      <tr><td>D3PG</td><td>48.78</td><td>40.78</td><td>+18.6%</td><td>16.40%</td></tr>
+      <tr><td>TD3</td><td>46.69</td><td>39.93</td><td>+16.1%</td><td>14.48%</td></tr>
+      <tr><td class="highlight">MADDPG</td><td>59.58</td><td>53.24</td><td class="highlight">+54.8%</td><td>10.64%</td></tr>
+      <tr><td class="best">MAD3PG ★</td><td class="best">59.50</td><td class="best">53.44</td><td class="best">+55.4%</td><td class="best">10.18%</td></tr>
+      <tr><td>MATD3</td><td>56.19</td><td>50.06</td><td>+45.6%</td><td>10.91%</td></tr>
+      <tr><td>MADQN</td><td>47.28</td><td>36.32</td><td>+5.6%</td><td>23.18%</td></tr>
+      <tr><td>MARainbow</td><td>52.01</td><td>43.90</td><td>+27.7%</td><td>15.59%</td></tr>
+      <tr><td>RBM</td><td>40.93</td><td>33.02</td><td>−4.0%</td><td>19.33%</td></tr>
+    </table>
+  </div>
+
+  <div class="cards">
+    <div class="card accent">
+      <div class="card-title" style="color:var(--accent);">📈 Salto multi-agente</div>
+      <p>El mayor avance no viene de mejorar el algoritmo interno, sino de pasar
+      de 1 agente a 3 agentes CTDE. MADDPG (+54.8 %) y MAD3PG (+55.4 %) casi
+      <strong>doblan los ahorros ajustados</strong> respecto a DDPG (£34.4k → £53.4k).</p>
+    </div>
+    <div class="card green2">
+      <div class="card-title" style="color:var(--accent3);">🔋 Menor desgaste</div>
+      <p>Los agentes multi-agente no solo ahorran más — también dañan menos las
+      baterías. MAD3PG tiene la <strong>pérdida ESS más baja (10.18 %)</strong>
+      frente al 19.87 % de DDPG. Cada agente especializado aprende a respetar
+      los límites de su propia tecnología.</p>
+    </div>
+    <div class="card orange">
+      <div class="card-title" style="color:var(--accent2);">⚠️ MADQN — discreción costosa</div>
+      <p>Pese a ser multi-agente, MADQN solo mejora +5.6 % sobre DDPG y tiene la
+      <strong>pérdida ESS más alta (23.18 %)</strong>. El espacio de acción discreto
+      (5 niveles) fuerza cargas/descargas bruscas que desgastan más las baterías.</p>
+    </div>
+  </div>
+
+  <h3>Caso de Estudio 2 — HESS + xMG Trading (Tabla 5)</h3>
+
+  <p>Se añaden el agente MGA y 5 agentes xMG al sistema. La microrred ahora puede
+  vender excedentes a sus vecinas a través de un mercado local de subasta.
+  Los ahorros incluyen tanto el arbitraje de red como los <strong>ingresos por
+  venta a xMGs</strong>.</p>
+
+  <div class="callout info">
+    <div class="ico">📋</div>
+    <div><strong>Columnas adicionales respecto a CS1:</strong>
+      <ul style="margin-top:8px;padding-left:18px;">
+        <li style="margin-bottom:5px;"><strong>Beneficio MGA (£k):</strong> Ingresos
+        totales obtenidos por el agente MGA vendiendo energía a las xMGs mediante
+        subasta. Es el componente nuevo que no existe en CS1.</li>
+        <li style="margin-bottom:5px;"><strong>MGA% :</strong> Porcentaje de los
+        ahorros brutos que proviene del trading MGA (vs del arbitraje puro contra
+        la red). Un valor alto (ej. D3PG 98.49 %) indica que el agente
+        casi ignora el HESS y se especializa solo en trading.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th>Algoritmo</th><th>Ahorros brutos (£k)</th>
+        <th>Ahorros ajustados (£k)</th><th>vs DDPG</th>
+        <th>Pérdida ESS</th><th>Beneficio MGA (£k)</th><th>MGA%</th>
+      </tr>
+      <tr><td>DDPG</td><td>151.38</td><td>146.46</td><td>—</td><td>3.25%</td><td>129.17</td><td>88.19%</td></tr>
+      <tr><td>D3PG</td><td>158.35</td><td>156.75</td><td>+7.0%</td><td>1.01%</td><td>154.39</td><td>98.49%</td></tr>
+      <tr><td>TD3</td><td>174.04</td><td>170.63</td><td>+16.5%</td><td>1.96%</td><td>157.68</td><td>92.41%</td></tr>
+      <tr><td>MADDPG</td><td>170.36</td><td>164.86</td><td>+12.6%</td><td>3.23%</td><td>124.72</td><td>75.65%</td></tr>
+      <tr><td>MAD3PG</td><td>187.01</td><td>180.17</td><td>+23.0%</td><td>3.66%</td><td>135.84</td><td>75.40%</td></tr>
+      <tr><td class="best">MATD3 ★</td><td class="best">190.54</td><td class="best">186.00</td><td class="best">+27.0%</td><td class="best">2.38%</td><td class="best">144.68</td><td class="best">77.78%</td></tr>
+    </table>
+  </div>
+
+  <div class="cards">
+    <div class="card green2">
+      <div class="card-title" style="color:var(--accent3);">📊 El trading multiplica el valor</div>
+      <p>El mejor resultado de CS1 (MAD3PG: £53.4k) se convierte en el
+      <em>peor</em> de CS2 (DDPG: £146.5k). El mercado local con xMGs
+      <strong>multiplica los ahorros ~3.5×</strong> sin cambiar los datos de
+      entrada ni el hardware — solo añadiendo más agentes.</p>
+    </div>
+    <div class="card accent">
+      <div class="card-title" style="color:var(--accent);">🏆 MATD3 lidera en competencia</div>
+      <p>En CS2 el entorno es <em>parcialmente competitivo</em> (xMGs vs MGA).
+      MATD3 lidera con £186k (+27 %) y la <strong>menor pérdida ESS (2.38 %)</strong>.
+      El doble crítico min(Q¹,Q²) evita sobreestimaciones típicas en entornos
+      con múltiples agentes de objetivos parcialmente opuestos.</p>
+    </div>
+    <div class="card orange">
+      <div class="card-title" style="color:var(--accent2);">⚠️ Anomalía D3PG (98.49 % MGA)</div>
+      <p>D3PG obtiene el 98.49 % de sus ahorros solo del trading MGA —
+      prácticamente <strong>ignora el arbitraje HESS</strong>. Maximiza ingresos
+      a corto plazo pero no optimiza el uso de las baterías. Es subóptimo a
+      largo plazo: las baterías no se usan para lo que fueron instaladas.</p>
+    </div>
+  </div>
+
+  <div class="callout key">
+    <div class="ico">🏆</div>
+    <div>
+      <strong>Conclusión principal (CS2):</strong> El trading con xMGs multiplica
+      los ahorros (~3.5× vs CS1 puro). MATD3 lidera con +27% sobre DDPG.
+      D3PG hace el 98.49% de sus ahorros solo por trading (casi ignora el HESS),
+      lo que es subóptimo a largo plazo.
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     17. COMPORTAMIENTO DE AGENTES
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="comportamiento">
+  <h2 class="section-h"><span class="num">17</span> Comportamiento aprendido y análisis</h2>
+
+  <h3>¿Por qué el multi-agente es mejor?</h3>
+  <p>El controlador único (DDPG, D3PG, TD3) controla los 3 ESS con una única función
+    de recompensa — difícil diferenciar cuánto contribuye cada uno. El enfoque
+    multi-agente asigna un agente y una función de recompensa propia a cada ESS,
+    permitiendo que cada uno aprenda una política adaptada a sus características.</p>
+
+  <h3>Estadios de aprendizaje (Caso 2)</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Fase</th><th>Pasos 0–1000</th><th>Episodios 1–30</th><th>Episodios 30–100</th><th>Episodios 100–200</th></tr>
+      <tr>
+        <td>xMGs</td><td>Acciones aleatorias</td>
+        <td>Aprenden que el MGA es barato → pujan alto</td>
+        <td>Ajustan pujas para no pagar de más</td>
+        <td>Equilibrio competitivo</td>
+      </tr>
+      <tr>
+        <td>MGA</td><td>Acciones aleatorias</td>
+        <td>Comportamiento extremo (vender todo o nada)</td>
+        <td>Aprende a restringir volumen y subir precio</td>
+        <td>Maximiza ingresos vía escasez artificial</td>
+      </tr>
+      <tr>
+        <td>ESS</td><td>Acciones aleatorias</td>
+        <td>Aprendizaje básico de arbitraje</td>
+        <td>Integra señales de precio + RES</td>
+        <td>Política estable adaptada al tipo de ESS</td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     18. ARQUITECTURAS PYTORCH
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="redes">
+  <h2 class="section-h"><span class="num">18</span> Arquitecturas PyTorch</h2>
+
+  <h3>MLP base — 2 × 256 (Tabla 2)</h3>
+  <pre><code><span class="kw">def</span> <span class="fn">_mlp_body</span>(input_dim: int, hidden_dim: int = <span class="num">256</span>) -> nn.Sequential:
+    <span class="str">"""Backbone compartido por Actor y Critic."""</span>
+    <span class="kw">return</span> nn.Sequential(
+        nn.Linear(input_dim, hidden_dim), nn.ReLU(),
+        nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+    )</code></pre>
+
+  <h3>Actor μ_φ(s) → acción ∈ (−1, 1)</h3>
+  <div class="net-diagram">
+    <div class="nd-box nd-input">obs local<small>obs_dim</small></div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-hidden">Linear(256)<br/>ReLU</div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-hidden">Linear(256)<br/>ReLU</div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-noisy">NoisyLinear<small>exploración</small></div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-tanh">tanh<small>→ (−1,1)</small></div>
+  </div>
+
+  <h3>Crítico DDPG Q_θ(s, a) → escalar</h3>
+  <div class="net-diagram">
+    <div class="nd-box nd-input">obs ‖ action<small>obs+act dim</small></div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-hidden">Linear(256)<br/>ReLU</div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-hidden">Linear(256)<br/>ReLU</div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-output">Q(s,a)<small>escalar</small></div>
+  </div>
+
+  <h3>Crítico centralizado MADDPG</h3>
+  <div class="net-diagram">
+    <div class="nd-box nd-input">obs_1…obs_N<small>todas obs</small></div>
+    <div class="nd-arrow">‖</div>
+    <div class="nd-box nd-input">act_1…act_N<small>todas acciones</small></div>
+    <div class="nd-arrow">→ cat →</div>
+    <div class="nd-box nd-hidden">Linear(256)<br/>ReLU</div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-hidden">Linear(256)<br/>ReLU</div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-output">Q_i(s,a)<small>valor agente i</small></div>
+  </div>
+
+  <a class="doc-ref" href="simulacion/pytorch_redes_explicacion.html" target="_blank">
+    <div class="doc-ref-left">
+      <div class="doc-ref-ico">⚙️</div>
+      <div>
+        <div class="doc-ref-title">Documentación completa de redes PyTorch</div>
+        <div class="doc-ref-sub">Actor · Critic · NoisyLinear · MADDPGCritic · DistributionalCritic · ciclo de entrenamiento · Tabla 2</div>
+      </div>
+    </div>
+    <div class="doc-ref-arrow">↗ Abrir documento</div>
+  </a>
+
+  <h3>Resumen por algoritmo</h3>
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th>Algoritmo</th><th>Agentes</th><th>Actor</th><th>Crítico</th>
+        <th>Entrada crítico</th><th>Ventaja clave</th><th>CS1</th><th>CS2</th>
+      </tr>
+      <tr>
+        <td><strong>DDPG</strong></td><td>1</td>
+        <td>NoisyLinear</td><td>Escalar</td><td>obs + act local</td>
+        <td>Línea base actor-crítico continuo</td>
+        <td>£34.4k</td><td>£146.5k</td>
+      </tr>
+      <tr>
+        <td><strong>D3PG</strong></td><td>1</td>
+        <td>NoisyLinear</td><td>Distributional</td><td>obs + act local</td>
+        <td>Estima distribución de retornos, no solo media</td>
+        <td>£40.8k <span style="color:#4ade80">+18.6%</span></td>
+        <td>£156.8k <span style="color:#4ade80">+7.0%</span></td>
+      </tr>
+      <tr>
+        <td><strong>TD3</strong></td><td>1</td>
+        <td>NoisyLinear</td><td>2 × Escalar</td><td>obs + act local</td>
+        <td>min(Q¹,Q²) elimina sesgo optimista</td>
+        <td>£39.9k <span style="color:#4ade80">+16.1%</span></td>
+        <td>£170.6k <span style="color:#4ade80">+16.5%</span></td>
+      </tr>
+      <tr>
+        <td><strong>MADDPG</strong></td><td>3</td>
+        <td>NoisyLinear</td><td>Escalar centralizado</td><td>ALL obs + ALL act</td>
+        <td>CTDE: crítico ve todo el sistema</td>
+        <td>£53.2k <span style="color:#4ade80">+54.8%</span></td>
+        <td>£164.9k <span style="color:#4ade80">+12.6%</span></td>
+      </tr>
+      <tr style="background:rgba(108,140,255,0.07)">
+        <td><strong>MAD3PG ★CS1</strong></td><td>3</td>
+        <td>NoisyLinear</td><td>Distributional centralizado</td><td>ALL obs + ALL act</td>
+        <td>CTDE + incertidumbre de retorno completa</td>
+        <td><strong style="color:#4ade80">£53.4k +55.4%</strong></td>
+        <td>£180.2k <span style="color:#4ade80">+23.0%</span></td>
+      </tr>
+      <tr style="background:rgba(64,207,160,0.07)">
+        <td><strong>MATD3 ★CS2</strong></td><td>3</td>
+        <td>NoisyLinear</td><td>2 × Escalar centralizado</td><td>ALL obs + ALL act</td>
+        <td>CTDE + sesgo Q mínimo</td>
+        <td>£50.1k <span style="color:#4ade80">+45.6%</span></td>
+        <td><strong style="color:#4ade80">£186.0k +27.0%</strong></td>
+      </tr>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     20. CONCLUSIONES
+═══════════════════════════════════════════════════════ -->
+<section class="section section-anchor" id="conclusiones">
+  <h2 class="section-h"><span class="num">20</span> Conclusiones generales</h2>
+
+  <div class="callout key">
+    <div class="ico">🏆</div>
+    <div><strong>Hallazgo principal del paper:</strong> El enfoque multi-agente con
+    arquitectura CTDE supera sistemáticamente al control single-agent en gestión
+    de HESS. El salto más grande viene de pasar de agente único a multi-agente
+    (~55 %), más que de cualquier mejora algorítmica interna.</div>
+  </div>
+
+  <div class="cards">
+    <div class="card accent">
+      <div class="card-title" style="color:var(--accent);">① Multi-agente supera al single-agent</div>
+      <p>En CS1, MADDPG (+54.8 %) y MAD3PG (+55.4 %) doblan los ahorros de DDPG
+      (+0 %). Las funciones de recompensa individuales por ESS permiten que cada
+      agente aprenda una política adaptada a sus características propias
+      (SC rápida, LIB equilibrada, VRB barata pero lenta).</p>
+    </div>
+    <div class="card purple">
+      <div class="card-title" style="color:var(--purple);">② El trading xMG multiplica el valor</div>
+      <p>En CS2, los ahorros crecen ~3.5× respecto a CS1 puro (de ~£53k a ~£186k)
+      gracias al mercado local de energía. El agente MGA aprende a crear escasez
+      artificial para maximizar ingresos, y las xMGs aprenden a contrarrestar
+      bajando sus pujas.</p>
+    </div>
+    <div class="card green2">
+      <div class="card-title" style="color:var(--accent3);">③ Algoritmo óptimo depende del caso</div>
+      <p><strong>CS1 (HESS puro):</strong> MAD3PG — el crítico distributional
+      gestiona mejor la incertidumbre de precios.<br>
+      <strong>CS2 (xMG competitivo):</strong> MATD3 — el doble crítico con
+      min(Q¹,Q²) evita sobreestimaciones en el entorno de juego entre agentes
+      con objetivos parcialmente opuestos.</p>
+    </div>
+  </div>
+
+  <figure class="fig-block">
+    <img src="simulacion/results/conclusions_chart.png"
+         alt="Gráfica comparativa de resultados — conclusiones"
+         title="Resultados comparativos de los algoritmos">
+    <figcaption>Comparativa de resultados entre algoritmos. Los métodos multi-agente
+    (MADDPG · MAD3PG · MATD3) dominan claramente sobre los single-agent y los
+    benchmarks discretos (MADQN · MARainbow · RBM).</figcaption>
+  </figure>
+
+  <h3>Lecciones por componente técnico</h3>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Componente</th><th>Efecto observado</th><th>Evidencia</th></tr>
+      <tr>
+        <td><strong>CTDE (multi-agente)</strong></td>
+        <td>Mayor impacto individual: +55 % sobre DDPG en CS1</td>
+        <td>Todas las variantes MA superan sus contrapartes SA</td>
+      </tr>
+      <tr>
+        <td><strong>Crítico distributional (D3PG)</strong></td>
+        <td>Mejor en entornos con alta variabilidad de precio</td>
+        <td>MAD3PG ★ CS1; D3PG single-agent ya mejora +18.6 % sobre DDPG</td>
+      </tr>
+      <tr>
+        <td><strong>Doble crítico min(Q) (TD3)</strong></td>
+        <td>Más estable en entornos competitivos multi-agente</td>
+        <td>MATD3 ★ CS2 con menor pérdida ESS (2.38 % vs 3.66 % MAD3PG)</td>
+      </tr>
+      <tr>
+        <td><strong>NoisyLinear (exploración)</strong></td>
+        <td>Exploración adaptativa sin hiperparámetros adicionales</td>
+        <td>Todos los algoritmos usan NoisyLinear; no se evalúa sin él</td>
+      </tr>
+      <tr>
+        <td><strong>Replay buffer off-policy</strong></td>
+        <td>Permite entrenar con solo 35 040 pasos reales</td>
+        <td>On-policy (PPO/A3C) descartado por inviabilidad con datos limitados</td>
+      </tr>
+      <tr>
+        <td><strong>Recompensa de contribución marginal</strong></td>
+        <td>Resuelve el problema de asignación de crédito en MAS cooperativo</td>
+        <td>Cada ESS optimiza su propia contribución incremental al ahorro global</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="callout paper">
+    <div class="ico">📄</div>
+    <div><strong>Cita del paper (§5, conclusión):</strong> <em>"The use of separate
+    reward functions for each component allowed the agents to develop
+    complementary strategies… The multi-agent approach also demonstrated
+    substantially lower ESS loss percentages, suggesting the agents learned
+    to manage the degradation of the storage devices more effectively."</em></div>
+  </div>
+
+  <h3>Limitaciones y trabajo futuro</h3>
+  <div class="cards">
+    <div class="card" style="background:var(--surface);">
+      <div class="card-title" style="color:var(--accent2);">⚠️ Limitaciones</div>
+      <ul style="padding-left:16px; margin:0;">
+        <li style="margin-bottom:6px;">Solo 1 pasada por los datos reales — no hay
+        evaluación fuera de muestra sobre años adicionales.</li>
+        <li style="margin-bottom:6px;">Los predictores de siguiente paso (RES, precio)
+        asumen perfecta correlación con datos históricos.</li>
+        <li style="margin-bottom:6px;">El modelo de VRB como "casi siempre inactivo"
+        sugiere posibles problemas de escalado de recompensa entre ESS.</li>
+      </ul>
+    </div>
+    <div class="card" style="background:var(--surface);">
+      <div class="card-title" style="color:var(--accent3);">🔭 Trabajo futuro</div>
+      <ul style="padding-left:16px; margin:0;">
+        <li style="margin-bottom:6px;">Aplicar a datos de múltiples regiones
+        geográficas para validar generalización.</li>
+        <li style="margin-bottom:6px;">Explorar SAC (Soft Actor-Critic) con
+        entropía máxima para mayor robustez en CS2.</li>
+        <li style="margin-bottom:6px;">Extender a más de 3 ESS y más xMGs para
+        evaluar escalabilidad del framework CTDE.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+
+</main>
+</div><!-- end layout -->
+
+<script>
+  // ── Highlight active sidebar link on scroll ──
+  const sections = document.querySelectorAll('.section-anchor');
+  const links = document.querySelectorAll('.sidebar a');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        links.forEach(l => l.classList.remove('active'));
+        const active = document.querySelector(`.sidebar a[href="#${id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+
+  sections.forEach(s => observer.observe(s));
+</script>
+
+</body>
+</html>

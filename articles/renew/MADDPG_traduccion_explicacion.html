@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MADDPG — Traducción y Explicación Completa</title>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" defer></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      max-width: 960px;
+      margin: 40px auto;
+      padding: 0 24px 80px;
+      background: #f7f9fc;
+      color: #222;
+      line-height: 1.8;
+    }
+    h1 { color: #1a3a5c; border-bottom: 3px solid #2e7d32; padding-bottom: 10px; }
+    h2 { color: #1a3a5c; border-left: 5px solid #2e7d32; padding-left: 12px; margin-top: 48px; }
+    h3 { color: #2e5984; margin-top: 32px; }
+    h4 { color: #37474f; margin-top: 20px; }
+    table {
+      border-collapse: collapse; width: 100%; margin: 16px 0;
+      background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      border-radius: 6px; overflow: hidden;
+    }
+    th { background: #1a3a5c; color: #fff; padding: 10px 14px; text-align: left; }
+    td { padding: 9px 14px; border-bottom: 1px solid #e0e0e0; }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) td { background: #f0f4f8; }
+    .card {
+      background: #fff; border-radius: 8px; padding: 18px 24px;
+      margin: 18px 0; box-shadow: 0 1px 6px rgba(0,0,0,0.09);
+      border-left: 5px solid #2e7d32;
+    }
+    .card.blue  { border-left-color: #1565c0; }
+    .card.orange{ border-left-color: #e65100; }
+    .card.purple{ border-left-color: #6a1b9a; }
+    .card.teal  { border-left-color: #00695c; }
+    .card.red   { border-left-color: #b71c1c; }
+    blockquote {
+      background: #e8f5e9; border-left: 5px solid #43a047;
+      margin: 20px 0; padding: 14px 20px; border-radius: 0 6px 6px 0;
+      font-style: italic; color: #1b5e20;
+    }
+    .formula-block {
+      background: #fff; border: 1px solid #cfd8dc; border-radius: 6px;
+      padding: 14px 20px; margin: 14px 0; text-align: center;
+    }
+    .tag {
+      display: inline-block; background: #1a3a5c; color: #fff;
+      border-radius: 4px; padding: 2px 10px; font-size: 0.82em; margin-right: 6px;
+    }
+    .algo {
+      background: #263238; color: #cfd8dc; border-radius: 8px;
+      padding: 20px 28px; font-family: 'Courier New', monospace;
+      font-size: 0.9em; line-height: 1.7; margin: 18px 0;
+      white-space: pre-wrap;
+    }
+    .algo .kw  { color: #80cbc4; font-weight: bold; }
+    .algo .num { color: #f48fb1; }
+    .algo .cmt { color: #78909c; }
+    code { background: #eceff1; border-radius: 3px; padding: 2px 6px; font-size: 0.92em; }
+    ul li, ol li { margin-bottom: 6px; }
+    hr { border: none; border-top: 1px solid #cfd8dc; margin: 40px 0; }
+    .toc { background:#fff; border-radius:8px; padding:18px 28px; box-shadow:0 1px 6px rgba(0,0,0,0.09); margin-bottom:36px; }
+    .toc a { color:#1565c0; text-decoration:none; }
+    .toc a:hover { text-decoration:underline; }
+    .toc li { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+
+<h1>MADDPG en Microrredes Energéticas<br>
+  <small style="font-size:0.52em;color:#555;">Traducción completa y explicación detallada</small>
+</h1>
+
+<div class="toc">
+  <strong>Índice de contenidos</strong>
+  <ol>
+    <li><a href="#contrib">Contribuciones principales</a></li>
+    <li><a href="#red">Red energética (ESS, demanda, precios, xMGs)</a></li>
+    <li><a href="#metodologia">Metodología de control (RL vs MPC)</a></li>
+    <li><a href="#rl">Fundamentos del Aprendizaje por Refuerzo</a></li>
+    <li><a href="#algoritmos">Algoritmos: DDPG, D3PG, TD3, MADDPG</a></li>
+    <li><a href="#entorno">Formulación del entorno (estados, acciones, recompensas)</a></li>
+    <li><a href="#pseudocodigo">Pseudocódigo: Algoritmo DDPG</a></li>
+    <li><a href="#param">Parámetros del entorno (ESS, RES, mercado, inversores)</a></li>
+    <li><a href="#mga">Propiedades del MGA, xMGs y subasta</a></li>
+    <li><a href="#simsetup">Configuración de la simulación e hiperparámetros</a></li>
+    <li><a href="#benchmarks">Benchmarks: MADQN, MARainbow, RBM</a></li>
+    <li><a href="#resultados">Resultados: Caso 1 (HESS) y Caso 2 (xMG)</a></li>
+    <li><a href="#conclusion">Conclusión</a></li>
+    <li><a href="#resumen">Resumen general</a></li>
+  </ol>
+</div>
+
+<hr>
+
+<h2 id="contrib">1. Contribuciones principales del artículo</h2>
+
+<div class="card" style="border: 3px solid #f9a825; background: #fffde7;">
+  <span class="tag" style="background:#f9a825; color:#000;">⭐ Enfoque Único</span>
+  <mark style="background:#fff176; padding:2px 4px; border-radius:3px;"><strong>Uso novedoso de MADDPG</strong> en un escenario de microrred MAS mixto (cooperativo y competitivo) para integración de RES y arbitraje energético.</mark><br><br>
+  El <strong>aprendizaje centralizado con ejecución descentralizada</strong> permite que cada agente evalúe su política observando las acciones de todos los demás, sin compartir parámetros ni redes críticas. Ideal tanto para el HESS cooperativo como para agentes con intereses propios en microrredes externas.
+</div>
+
+<div class="card blue">
+  <span class="tag" style="background:#1565c0">Contribución 2</span>
+  <strong>Arbitraje energético + integración de RES en un único problema.</strong><br><br>
+  Un esquema de precios en tiempo real del mercado mayorista asimétrico obliga a los agentes a responder tanto a los precios fluctuantes como a la producción renovable para reducir las facturas energéticas.
+</div>
+
+<div class="card orange">
+  <span class="tag" style="background:#e65100">Contribución 3</span>
+  <mark style="background:#ffccbc; padding:2px 4px; border-radius:3px;"><strong>🔴 Agente global único vs. múltiples agentes distribuidos.</strong></mark><br><br>
+  Bajo MADDPG, la función de recompensa individual usa el concepto de <em>contribución marginal</em> para evaluar cómo las acciones de cada agente impactan el objetivo conjunto de reducir costes. Cada agente en el HESS desarrolla su propia política adaptada a su tipo de almacenamiento.
+</div>
+
+<hr>
+
+<h2 id="red">2. Descripción de la red energética</h2>
+
+<p>La <strong>microrred principal</strong> tiene generación fotovoltaica (PV) y eólica (WT), un HESS y conexiones a:</p>
+<ul>
+  <li>La <strong>red eléctrica principal</strong> — compra a precio dinámico, vende a tarifa fija de inyección</li>
+  <li><strong>5 microrredes externas (xMGs)</strong> — conectadas a la red, pero no al mercado mayorista</li>
+</ul>
+
+<h3>2.1. Sistema de Almacenamiento de Energía (HESS)</h3>
+<table>
+  <tr><th>Tipo</th><th>Nombre completo</th><th>Uso óptimo</th><th>Características clave</th></tr>
+  <tr><td><strong>LIB</strong></td><td>Batería de Iones de Litio</td><td>Mediano plazo</td><td>Más barata/capacidad, baja autodescarga, buena eficiencia. Pocos ciclos de vida totales.</td></tr>
+  <tr><td><strong>VRB</strong></td><td>Batería de Flujo de Vanadio</td><td>Largo plazo</td><td>Autodescarga despreciable, pero eficiencia de ciclo baja.</td></tr>
+  <tr><td><strong>SC</strong></td><td>Supercondensador</td><td>Corto plazo (fluctuaciones diarias)</td><td>Muchísimos ciclos de vida (muy barato de operar), pero alta autodescarga.</td></tr>
+</table>
+<p>Los tres tienen la misma capacidad y potencia máxima y pueden transferir energía entre sí sin pasar por un inversor.</p>
+
+<h3>2.2. Demanda y Fuentes Renovables</h3>
+<p>Datos reales del <strong>Campus de la Universidad de Keele</strong> (enero 2014 – diciembre 2017): demanda residencial, industrial y comercial, más datos meteorológicos del mismo campus para simular PV y WT.</p>
+
+<h3>2.3. Precios del mercado mayorista</h3>
+<div class="card purple">
+  <span class="tag" style="background:#6a1b9a">Asimetría de precios</span><br><br>
+  La microrred compra a <strong>precios dinámicos en tiempo real</strong> (variables y altos) pero solo puede vender a una <strong>tarifa de inyección fija</strong> (baja y constante).<br><br>
+  Los agentes deben aprender a <em>comprar cuando el precio es bajo</em> y <em>maximizar el uso de renovables</em> — esto incentiva simultáneamente el arbitraje y la integración de RES.
+</div>
+
+<h3>2.4. Comercio con microrredes externas (xMGs)</h3>
+<p>El agente <strong>MGA</strong> (Agregador de Microrred) vende energía a 5 xMGs mediante subasta:</p>
+<ol>
+  <li>El MGA decide cuánta energía vender y fija un precio de reserva mínimo</li>
+  <li>Las xMGs pujan por cantidad y precio</li>
+  <li>El MGA vende a las que pujen más alto hasta agotar el stock</li>
+  <li>Si no se alcanza el precio de reserva, la energía se devuelve a la red</li>
+</ol>
+
+<hr>
+
+<h2 id="metodologia">3. Metodología de control: RL vs MPC</h2>
+<p>El <strong>Control Predictivo de Modelos (MPC)</strong> requiere un modelo matemático preciso del entorno — no siempre disponible.</p>
+<p>El <strong>Aprendizaje por Refuerzo (RL)</strong> es <em>sin modelo</em>: aprende directamente de la interacción con el entorno. El reto principal aquí es la <strong>eficiencia de muestreo</strong> — solo hay 4 años de datos históricos con una única pasada completa, por lo que se necesitan algoritmos RL con alta eficiencia muestral.</p>
+
+<hr>
+
+<h2 id="rl">4. Fundamentos del Aprendizaje por Refuerzo</h2>
+<p>En cada paso de tiempo \(t\), el agente:</p>
+<ol>
+  <li>Observa el estado del entorno \(s_t\)</li>
+  <li>Selecciona una acción \(a_t\) según su política aprendida</li>
+  <li>Recibe una recompensa \(r_t\) y transiciona al estado \(s_{t+1}\)</li>
+</ol>
+<p>El objetivo es aprender la política que maximice la <strong>recompensa futura total con descuento</strong>.</p>
+
+<table>
+  <tr><th>Tipo de algoritmo RL</th><th>Descripción</th></tr>
+  <tr><td><strong>Función de valor</strong></td><td>Estima \(V(s)\) o \(Q(s,a)\) para evaluar el valor de cada estado/acción</td></tr>
+  <tr><td><strong>Gradiente de política</strong></td><td>Parametriza la política con una red neuronal y optimiza \(\nabla_\theta J(\theta)\)</td></tr>
+  <tr><td><strong>Actor-Crítico</strong></td><td>Combina ambos: aprende una función de valor Y parametriza la política</td></tr>
+</table>
+
+<hr>
+
+<h2 id="algoritmos">5. Algoritmos</h2>
+
+<h3>5.1. DDPG — Deep Deterministic Policy Gradient</h3>
+<p>Método <strong>actor-crítico</strong> para acciones continuas:</p>
+<ul>
+  <li><strong>Red actora</strong> \(\mu_\phi(s)\): decide la acción a tomar</li>
+  <li><strong>Red crítica</strong> \(Q_\theta(s,a)\): evalúa la calidad de esa acción</li>
+</ul>
+
+<h4>Selección de acciones</h4>
+<div class="formula-block">\[ a_t = \mu_\phi(s_t) + w \]</div>
+<p>La política es determinista; el agente explora añadiendo ruido \(w\). Se usan <strong>capas NoisyNet</strong>: el agente aprende a ajustar su propio nivel de exploración según el estado.</p>
+
+<h4>Memoria de repetición de experiencias (Replay Buffer)</h4>
+<p>Almacena tuplas \(\langle s_t, a_t, r_t, s_{t+1}, d_t \rangle\) para entrenar de forma <strong>off-policy</strong> (re-aprende de experiencias pasadas). Crucial cuando solo se tiene una pasada por 4 años de datos.</p>
+
+<h4>Actualización del crítico</h4>
+<div class="formula-block">
+  \[ y_i = r_i + \gamma \hat{Q}_{\hat\theta}(s_{i+1},\, \hat{\mu}_{\hat\phi}(s_{i+1})) \]
+  \[ \mathcal{L}_i(\theta) = \mathbb{E}\left[(y_i - Q_\theta(s_i, a_i))^2\right] \]
+</div>
+<ul>
+  <li><strong>\(y_i\)</strong>: valor objetivo = recompensa inmediata \(r_i\) + valor futuro estimado por la red objetivo (con descuento \(\gamma\)). \(\gamma\) cercano a 1 = agente "paciente" que valora el futuro.</li>
+  <li><strong>\(\mathcal{L}_i\)</strong>: error cuadrático medio entre la predicción del crítico y ese objetivo. Se minimiza por descenso de gradiente — el crítico aprende a ser un "juez" cada vez más preciso.</li>
+</ul>
+
+<h4>Actualización del actor</h4>
+<div class="formula-block">
+  \[ \nabla_\phi J_i(\phi) = \mathbb{E}\left[\nabla_a Q_\theta(s_i, a)\big|_{a=\mu(s)}\; \nabla_\phi \mu_\phi(s_i)\right] \]
+</div>
+<ul>
+  <li><strong>\(\nabla_a Q_\theta\)</strong>: el crítico indica en qué dirección cambiar la acción para obtener mayor valor \(Q\) — le dice al actor: <em>"si hubieras actuado un poco más en esta dirección, habría sido mejor"</em>.</li>
+  <li>Por la regla de la cadena, se ajustan los pesos \(\phi\) del actor para producir esas acciones más valiosas — el actor mejora siguiendo los consejos del crítico, por ascenso de gradiente.</li>
+</ul>
+
+<h4>Actualización suave de redes objetivo</h4>
+<div class="formula-block">
+  \[ \hat\theta \leftarrow \tau\theta + (1-\tau)\hat\theta \qquad \hat\phi \leftarrow \tau\phi + (1-\tau)\hat\phi \]
+</div>
+<ul>
+  <li><strong>\(\tau\)</strong> (típicamente ~0.005): parámetro de suavizado — controla cuánto se mueven las redes objetivo por paso.</li>
+  <li>Las redes objetivo son copias "lentas" que producen un objetivo estable: el agente persigue un blanco que se mueve despacio en vez de uno errático, lo que estabiliza la convergencia del aprendizaje.</li>
+</ul>
+
+<hr>
+
+<h3>5.2. D3PG — Distributional DDPG</h3>
+
+<h4>El problema del DDPG estándar: un solo número no basta</h4>
+<p>En DDPG, el crítico aprende a predecir <strong>un único número</strong>: el valor esperado \(\mathbb{E}[G]\) del retorno total desde ese estado y acción. El problema es que en entornos con alta variabilidad —como una microrred con precios de mercado fluctuantes y generación solar impredecible— dos situaciones muy distintas pueden tener el <em>mismo valor esperado</em> pero comportamientos completamente diferentes:</p>
+
+<table>
+  <tr><th>Situación</th><th>Retorno posible A</th><th>Retorno posible B</th><th>Valor esperado</th></tr>
+  <tr><td>Precio estable</td><td>−50 €</td><td>−50 €</td><td>−50 € (sin incertidumbre)</td></tr>
+  <tr><td>Precio volátil</td><td>−200 € (precio pico)</td><td>+100 € (precio bajo)</td><td>−50 € (alta incertidumbre)</td></tr>
+</table>
+<p>El DDPG ve ambas situaciones como idénticas (mismo \(Q = -50\)), cuando en realidad son radicalmente distintas para tomar decisiones. Este es el problema de <strong>sobre-generalización</strong>.</p>
+
+<h4>La solución de D3PG: modelar toda la distribución</h4>
+<p>D3PG no predice un solo número sino <strong>toda la distribución de probabilidad de los posibles retornos</strong> \(Z(s,a)\). La ecuación de Bellman distribucional es:</p>
+<div class="formula-block">
+  \[ Z(s_t, a_t) = \mathcal{R}(s_t, a_t) + \gamma Z(s_{t+1}, a_{t+1}) \]
+</div>
+<p>En lugar de operar con valores escalares, toda la distribución se propaga hacia atrás a través del tiempo, preservando la incertidumbre. Esto es análogo a la ecuación de Bellman clásica pero para distribuciones completas en vez de para esperanzas.</p>
+
+<h4>Paso 1 — Representar la distribución con átomos</h4>
+
+<div class="card blue">
+  <strong>¿Qué es un "átomo" aquí?</strong><br><br>
+  Una red neuronal no puede generar una curva de probabilidad continua directamente — solo genera números. La solución es convertir el eje continuo de "posibles retornos" en una <strong>rejilla fija de puntos discretos</strong>. Cada uno de esos puntos es un <strong>átomo</strong>.
+  <br><br>
+  Piénsalo como una <strong>regla graduada</strong>: en vez de medir con precisión infinita, marcas unas rayas fijas (−100, −75, −50, −25, 0). La red neuronal entonces no predice "el retorno exacto", sino <strong>con qué probabilidad el retorno cae cerca de cada raya</strong>.
+  <br><br>
+  Ejemplo concreto con 5 átomos entre −100 € y 0 €:
+  <table style="margin-top:8px">
+    <tr><th>Átomo \(z_i\)</th><th>Descripción informal</th><th>Probabilidad predicha (ejemplo)</th></tr>
+    <tr><td>−100 €</td><td>Escenario muy malo (precio pico, no hay renovables)</td><td>5 %</td></tr>
+    <tr><td>−75 €</td><td>Escenario malo</td><td>10 %</td></tr>
+    <tr><td>−50 €</td><td>Escenario normal</td><td>60 %</td></tr>
+    <tr><td>−25 €</td><td>Escenario bueno</td><td>20 %</td></tr>
+    <tr><td>0 €</td><td>Escenario óptimo (mucha renovable, precio bajo)</td><td>5 %</td></tr>
+  </table>
+  <br>
+  La red neuronal tiene una neurona de salida por átomo. En la práctica el artículo usa <strong>51 átomos</strong> (igual que el algoritmo C51 del que hereda), cubriendo desde el peor retorno posible \(v_\text{min}\) hasta el mejor \(v_\text{max}\).
+</div>
+
+<p>Los átomos están espaciados uniformemente entre \(v_\text{min}\) y \(v_\text{max}\):</p>
+<div class="formula-block">
+  \[ z_i = v_\text{min} + (i-1)\frac{v_\text{max} - v_\text{min}}{N_\text{atoms} - 1}, \qquad i = 1, \ldots, N_\text{atoms} \]
+</div>
+<table>
+  <tr><th>Término</th><th>Qué significa</th></tr>
+  <tr><td>\(z_i\)</td><td>Valor del \(i\)-ésimo átomo — un nivel de retorno posible</td></tr>
+  <tr><td>\(v_\text{min},\; v_\text{max}\)</td><td>Rango de retornos que la red puede representar. En el artículo: −10 y +10 (tras normalizar con el factor 0.01)</td></tr>
+  <tr><td>\(N_\text{atoms}\)</td><td>Número total de átomos = resolución del histograma. Más átomos → representación más fina de la distribución</td></tr>
+  <tr><td>\((i-1)\frac{v_\text{max}-v_\text{min}}{N_\text{atoms}-1}\)</td><td>Separación uniforme entre rayas de la regla para que el primer átomo caiga exactamente en \(v_\text{min}\) y el último en \(v_\text{max}\)</td></tr>
+</table>
+
+<h4>Paso 2 — Predecir probabilidades con softmax</h4>
+<p>La red neuronal predice la <strong>probabilidad de cada átomo</strong> para el par estado-acción \((s,a)\) mediante un softmax (garantiza que las probabilidades sumen 1):</p>
+<div class="formula-block">
+  \[ d_i(s,a) = \frac{\exp(\theta_i(s,a))}{\sum_j \exp(\theta_j(s,a))} \]
+</div>
+<p>Donde \(\theta_i(s,a)\) son los logits de salida de la red para el átomo \(i\). El resultado es una distribución discreta: por ejemplo \(d = [0.05,\; 0.10,\; 0.60,\; 0.20,\; 0.05]\) sobre el soporte \([-100, -75, -50, -25, 0]\), que representa que el retorno más probable es −50 pero con cola en valores peores.</p>
+
+<h4>Paso 3 — Proyectar la distribución objetivo</h4>
+<p>Para entrenar, se calcula la distribución objetivo aplicando la ecuación de Bellman distribucional: se toma la distribución del siguiente estado \(Z(s_{t+1}, a_{t+1})\), se escala por \(\gamma\) y se desplaza por la recompensa \(r\). Como los átomos desplazados pueden caer entre los puntos fijos del soporte, se <strong>proyectan</strong> sobre el soporte original mediante el algoritmo categórico (operador \(\Phi\)):</p>
+<div class="formula-block">
+  \[ \hat{z}_j = r + \gamma z_j \quad \text{(desplazar los átomos)} \qquad \Rightarrow \qquad \text{proyectar } \hat{z}_j \text{ sobre el soporte fijo } \{z_i\} \]
+</div>
+
+<h4>Paso 4 — Entrenamiento con divergencia KL</h4>
+<p>La función de pérdida mide la <strong>distancia entre la distribución predicha y la distribución objetivo proyectada</strong>. Como ambas son distribuciones de probabilidad, se usa la <strong>divergencia Kullback-Leibler</strong> (mide cuánta información se pierde al aproximar una distribución con otra), en lugar del error cuadrático medio:</p>
+<div class="formula-block">
+  \[ \mathcal{L}_i(\theta) = D_\text{KL}\!\left(\hat\Phi Z_{\hat\theta}(s_i,a_i) \;\|\; Z_\theta(s_i,a_i)\right) \]
+</div>
+<p>Donde \(\hat\Phi Z_{\hat\theta}\) es la distribución objetivo proyectada (usando la red objetivo, como en DDPG) y \(Z_\theta\) es la distribución predicha por la red actual. La red se entrena para que su distribución se parezca cada vez más a la distribución objetivo.</p>
+
+<div class="card teal">
+  <strong>Resumen intuitivo: de termómetro a barómetro</strong><br><br>
+  <ul style="margin:8px 0 0 0">
+    <li><strong>DDPG</strong> es como un termómetro: solo te dice la temperatura media esperada. Si el día puede ser muy frío o muy caluroso con igual probabilidad, te dice "templado" — información insuficiente para decidir qué ropa llevar.</li>
+    <li><strong>D3PG</strong> es como un parte meteorológico completo: te dice "30% de probabilidad de frío intenso, 50% de templado, 20% de calor". Con eso puedes tomar decisiones mucho más informadas.</li>
+  </ul>
+  <br>
+  En microrredes, esto se traduce en que el agente puede tener en cuenta la posibilidad de precios de energía extremos (picos o valles), no solo el precio promedio — lo que conduce a estrategias de carga/descarga más robustas y conservadoras ante la incertidumbre del mercado.
+</div>
+
+<hr>
+
+<h3>5.3. TD3 — Twin Delayed DDPG</h3>
+<p>Un problema común en RL es la <strong>sobreestimación del valor \(Q\)</strong> — los agentes favorecen acciones que asumen valiosas, generando políticas subóptimas.</p>
+<p>TD3 usa <strong>dos pares de redes críticas</strong>. El valor objetivo toma el <em>mínimo</em> de las dos estimaciones:</p>
+<div class="formula-block">
+  \[ y_i = r_i + \gamma \min_{k=1,2} \hat{Q}_{\hat\theta_k}(s_{i+1}, \hat\mu_{\hat\phi}(s_{i+1})) \]
+</div>
+<table>
+  <tr><th>Término</th><th>Qué significa</th></tr>
+  <tr><td>\(y_i\)</td><td>Valor objetivo al que se entrena el crítico — la "respuesta correcta"</td></tr>
+  <tr><td>\(r_i\)</td><td>Recompensa inmediata recibida en este paso (ej. ahorro en la factura de energía)</td></tr>
+  <tr><td>\(\gamma\)</td><td>Factor de descuento (0–1): cuánto importan las recompensas futuras. Si \(\gamma = 0.99\), el agente valora mucho el futuro.</td></tr>
+  <tr><td>\(\min_{k=1,2}\)</td><td><strong>La clave de TD3</strong>: se toman los dos críticos objetivo y se usa el que da el valor <em>más bajo (más conservador)</em>. Así se evita inflar artificialmente el valor.</td></tr>
+  <tr><td>\(\hat{Q}_{\hat\theta_k}(s_{i+1}, \hat\mu_{\hat\phi}(s_{i+1}))\)</td><td>Valor estimado por el crítico objetivo \(k\) para el siguiente estado \(s_{i+1}\), tomando la acción que daría el actor objetivo \(\hat\mu\)</td></tr>
+</table>
+
+<p>Ese valor objetivo compartido se usa para la pérdida de <em>ambos</em> críticos:</p>
+<div class="formula-block">
+  \[ \mathcal{L}_i(\theta_1) = \mathbb{E}\left[(y_i - Q_{\theta_1}(s_i, a_i))^2\right] \qquad
+     \mathcal{L}_i(\theta_2) = \mathbb{E}\left[(y_i - Q_{\theta_2}(s_i, a_i))^2\right] \]
+</div>
+<table>
+  <tr><th>Término</th><th>Qué significa</th></tr>
+  <tr><td>\(\mathcal{L}_i(\theta_1)\), \(\mathcal{L}_i(\theta_2)\)</td><td>Función de pérdida (error) de cada uno de los dos críticos. Ambos aprenden a predecir el mismo objetivo \(y_i\).</td></tr>
+  <tr><td>\(y_i - Q_{\theta_k}(s_i, a_i)\)</td><td>Diferencia entre lo que debería valer ese par estado-acción (\(y_i\)) y lo que predice el crítico \(k\). Se eleva al cuadrado para penalizar más los errores grandes.</td></tr>
+  <tr><td>\(\mathbb{E}[\cdot]\)</td><td>Valor esperado sobre el mini-lote de muestras del replay buffer — se promedian los errores del lote.</td></tr>
+</table>
+<p>Aunque ambos críticos se entrenan hacia el mismo objetivo, parten de inicializaciones aleatorias distintas y divergen, lo que hace que sus estimaciones sean independientes — de ahí el beneficio de tomar el mínimo.</p>
+
+<p>El actor se actualiza con <strong>menor frecuencia</strong> que el crítico (actualización retrasada) usando solo el primer crítico:</p>
+<div class="formula-block">
+  \[ \nabla_\phi J_i(\phi) = \mathbb{E}\left[\nabla_a Q_{\theta_1}(s_i, a)\big|_{a=\mu(s)}\; \nabla_\phi \mu_\phi(s_i)\right] \]
+</div>
+<table>
+  <tr><th>Término</th><th>Qué significa</th></tr>
+  <tr><td>\(\nabla_\phi J_i(\phi)\)</td><td>Gradiente del objetivo del actor respecto a sus pesos \(\phi\) — indica cómo cambiar la red actora para obtener más valor</td></tr>
+  <tr><td>\(\nabla_a Q_{\theta_1}(s_i, a)\big|_{a=\mu(s)}\)</td><td>¿En qué dirección cambiar la acción para aumentar el valor \(Q\)? El crítico 1 le dice al actor hacia dónde moverse.</td></tr>
+  <tr><td>\(\nabla_\phi \mu_\phi(s_i)\)</td><td>¿Cómo cambia la acción si se modifican los pesos del actor? (regla de la cadena)</td></tr>
+  <tr><td>Producto de ambos gradientes</td><td>Juntos forman el gradiente que guía el ascenso del actor: «haz que tus acciones vayan más en la dirección que el crítico considera valiosa»</td></tr>
+  <tr><td>Actualización retrasada</td><td>El actor solo se actualiza cada N pasos de crítico (ej. 1 de cada 2), para que el crítico haya convergido lo suficiente antes de guiar al actor. Evita que el actor persiga un objetivo de un crítico aún impreciso.</td></tr>
+</table>
+<div class="card red">
+  <strong>Ventaja clave de TD3:</strong><br><br>
+  Usar el mínimo de dos críticos evita optimizar sobre valores \(Q\) inflados — como pedir dos opiniones y quedarse con la más conservadora. La actualización retrasada del actor evita que la política cambie antes de que el crítico haya aprendido a evaluarla correctamente.
+</div>
+
+<hr>
+
+<h3>5.4. MADDPG — Multi-Agent DDPG</h3>
+<p>Aplicar RL de agente único en un MAS tiene un problema fundamental: el entorno parece <strong>no estacionario</strong> desde cada agente — el mismo estado puede producir recompensas distintas según las acciones de los demás. Además:</p>
+<ul>
+  <li>En entornos <strong>competitivos</strong>: los agentes pueden sobreajustar su política a los comportamientos de los rivales</li>
+  <li>En entornos <strong>cooperativos</strong>: existe el problema de asignación de crédito cuando se usa una recompensa compartida</li>
+</ul>
+
+<p><strong>MADDPG</strong> soluciona esto con <strong>aprendizaje centralizado + ejecución descentralizada</strong>:</p>
+<table>
+  <tr><th>Fase</th><th>¿Qué ve cada agente?</th><th>¿Qué comparte?</th></tr>
+  <tr><td><strong>Ejecución</strong></td><td>Solo sus propias observaciones locales</td><td>Nada (privacidad total)</td></tr>
+  <tr><td><strong>Entrenamiento (crítico)</strong></td><td>Estados y acciones de <em>todos</em> los agentes</td><td>Solo acciones observadas (no los pesos de red)</td></tr>
+</table>
+
+<p>Ventajas clave frente a otros métodos multi-agente:</p>
+<ul>
+  <li>Cada agente tiene su <strong>propio crítico</strong> (QMIX y COMA usan uno compartido, solo válido para cooperación pura)</li>
+  <li>Cada agente puede definir su <strong>propia función de recompensa</strong> → válido para entornos competitivos, cooperativos o mixtos</li>
+  <li>El concepto de <strong>contribución marginal</strong> en la función de recompensa evalúa mejor el impacto individual de cada agente en el objetivo conjunto</li>
+</ul>
+
+<hr>
+
+<h2 id="entorno">6. Formulación del entorno (estados, acciones, recompensas)</h2>
+
+<h3>6.1. Estados observados</h3>
+<p><strong>Agentes ESS</strong> observan (todo escalado entre 0 y 1):</p>
+<div class="formula-block" style="text-align:left; font-size:0.92em; overflow-x:auto;">
+  \[ s_t^\text{ESS} = \left[c_t^\text{LIB},\; c_t^\text{SC},\; c_t^\text{VRB},\; P_t^\text{grid},\; \dot{P}_{t+1}^\text{grid},\; P_t^\text{MGA},\; X_t^\text{MGA},\; X_t^D,\; \dot{X}_{t+1}^D,\; X_t^\text{PV},\; \dot{X}_{t+1}^\text{PV},\; X_t^\text{WT},\; \dot{X}_{t+1}^\text{WT},\; H_t^\text{day},\; H_t^\text{week}\right] \]
+</div>
+<p>Incluye: carga de cada ESS, precio de red actual y predicho, volumen/precio MGA, demanda actual y predicha, generación PV y WT actual y predicha (con ANNs de regresión sobre datos meteorológicos), hora del día y semana.</p>
+
+<p><strong>Agentes xMG</strong> solo reciben información relevante para ellas — la información del HESS permanece privada:</p>
+<div class="formula-block">
+  \[ s_t^\text{xMG} = \left[P_t^\text{MGA},\; X_t^\text{MGA},\; X_t^{xMG,D},\; H_t^\text{day},\; H_t^\text{week}\right] \]
+</div>
+
+<h3>6.2. Acciones de cada agente</h3>
+
+<h4>Agentes ESS — carga/descarga</h4>
+<div class="formula-block">
+  \[ x_t^\text{ESS} = X_\text{max}^\text{ESS} \cdot a_t^\text{ESS} \]
+</div>
+<p>Positivo = carga; negativo = descarga. Agente único: 3 acciones simultáneas (o 5 con MGA). Multi-agente: cada agente controla un ESS.</p>
+
+<h4>Agente MGA — volumen de venta y precio de reserva</h4>
+<div class="formula-block">
+  \[ X_{t+1}^\text{MGA} = 0.5\, X_\text{max}^\text{MGA}\, a_t^\text{MGA,X} + 0.5\, X_\text{max}^\text{MGA} \]
+  \[ P_{t+1}^\text{MGA} = 0.5(P_\text{max} - P_\text{min})\, a_t^\text{MGA,P} + 0.5(P_\text{max} + P_\text{min}) \]
+</div>
+<p>Estas ecuaciones convierten la salida del actor (que siempre está entre −1 y +1) al rango físico real del entorno:</p>
+<table>
+  <tr><th>Término</th><th>Qué significa</th></tr>
+  <tr><td>\(a_t^\text{MGA,X} \in [-1, 1]\)</td><td>Acción que decide la red actora para el volumen — valor crudo entre −1 y +1</td></tr>
+  <tr><td>\(0.5\, X_\text{max}^\text{MGA}\, a_t + 0.5\, X_\text{max}^\text{MGA}\)</td><td>Reescala de [−1, +1] → [0, X_max]: cuando \(a=-1\) el volumen es 0 (no vende nada); cuando \(a=+1\) el volumen es X_max (vende todo lo posible)</td></tr>
+  <tr><td>\(a_t^\text{MGA,P} \in [-1, 1]\)</td><td>Acción que decide el precio de reserva — valor crudo entre −1 y +1</td></tr>
+  <tr><td>\(0.5(P_\text{max} - P_\text{min})\, a_t^P + 0.5(P_\text{max} + P_\text{min})\)</td><td>Reescala de [−1, +1] → [P_min, P_max] = [£16/MWh, £144/MWh]: cuando \(a=-1\) el precio de reserva es el mínimo; cuando \(a=+1\) es el máximo</td></tr>
+</table>
+
+<h4>Agentes xMG — volumen de puja y precio ofertado</h4>
+<div class="formula-block">
+  \[ x_t^\text{xMG} = 0.5\, X_\text{max}^\text{xMG}\, a_t^\text{xMG,X} + 0.5\, X_\text{max}^\text{xMG} \]
+  \[ p_t^\text{xMG} = 0.5(P_\text{max} - P_\text{min})\, a_t^\text{xMG,P} + 0.5(P_\text{max} + P_\text{min}) \]
+</div>
+<p>Mismo patrón de reescalado que el MGA, pero ahora para las microrredes compradoras:</p>
+<table>
+  <tr><th>Término</th><th>Qué significa</th></tr>
+  <tr><td>\(x_t^\text{xMG}\)</td><td>Cantidad de energía que la xMG quiere comprar en este paso (en MWh)</td></tr>
+  <tr><td>\(a_t^\text{xMG,X} \in [-1,1]\)</td><td>Acción del actor de la xMG para el volumen — reescalada de [−1,+1] a [0, X_max]</td></tr>
+  <tr><td>\(p_t^\text{xMG}\)</td><td>Precio máximo que la xMG está dispuesta a pagar (su puja). Si el MGA pide más, no consigue energía.</td></tr>
+  <tr><td>\(a_t^\text{xMG,P} \in [-1,1]\)</td><td>Acción del actor para el precio de puja — reescalada de [−1,+1] a [P_min, P_max] = [£16/MWh, £144/MWh]</td></tr>
+</table>
+<p>La <strong>competencia</strong> surge aquí: si varias xMGs quieren la misma energía, gana quien puje más alto. El agente xMG aprende a pujar lo justo: lo suficiente para ganar, pero sin pagar de más.</p>
+
+<h3>6.3. Función de recompensa</h3>
+
+<h4>Energía en la línea DC</h4>
+<div class="formula-block">
+  \[ X_t^\text{dc} = x_t^\text{LIB}\eta_\text{RTE}^\text{LIB} + x_t^\text{VRB}\eta_\text{RTE}^\text{VRB} + x_t^\text{SC}\eta_\text{RTE}^\text{SC} - X_t^\text{PV} \]
+</div>
+<p>Combina las contribuciones de cada ESS (multiplicadas por su eficiencia de ciclo \(\eta_\text{RTE}\)) menos la generación PV.</p>
+
+<h4>Energía importada de la red</h4>
+<div class="formula-block">
+  \[ X_t^\text{in} = (X_t^D + X_t^\text{dc}\,\eta^\text{inv} - X_t^\text{WT}\,\eta_\text{MW})\,\eta_\text{tra} \]
+</div>
+<table>
+  <tr><th>Término</th><th>Qué significa</th></tr>
+  <tr><td>\(X_t^D\)</td><td>Demanda total del campus en el paso \(t\) (energía AC que hay que cubrir)</td></tr>
+  <tr><td>\(X_t^\text{dc}\,\eta^\text{inv}\)</td><td>Energía neta del HESS convertida a AC mediante el inversor (eficiencia \(\eta^\text{inv} < 1\)). Si el HESS descarga, suma; si carga, resta.</td></tr>
+  <tr><td>\(X_t^\text{WT}\,\eta_\text{MW}\)</td><td>Generación eólica disponible después de pasar por el transformador (eficiencia \(\eta_\text{MW}\)). Resta porque reduce lo que hay que importar.</td></tr>
+  <tr><td>\(\eta_\text{tra}\)</td><td>Eficiencia del transformador principal entre la microrred y la red eléctrica general. Toda la energía importada pasa por él.</td></tr>
+  <tr><td>Resultado \(X_t^\text{in}\)</td><td>Si es positivo → la microrred importa energía de la red (coste). Si fuera negativo → exporta (ingreso a tarifa fija). Este valor determina directamente la factura.</td></tr>
+</table>
+
+<h4>Recompensa por coste de energía</h4>
+<div class="formula-block">
+  \[ R_t^\text{in} = -X_t^\text{in} \cdot P_t^\text{grid} \]
+</div>
+<p>Negativo porque importar tiene coste — los agentes aprenden a minimizarlo.</p>
+
+<h4>Penalizaciones a los agentes ESS</h4>
+<ul>
+  <li><strong>\(R_t^\text{cap}\)</strong>: penaliza acciones que llevarían al ESS fuera de sus límites de capacidad (proporcional al cuadrado de la violación)</li>
+  <li><strong>\(R_t^\text{SDC}\)</strong>: penaliza la energía perdida por autodescarga en cada paso, proporcional al estado de carga y la tasa de autodescarga</li>
+  <li><strong>\(R^\text{CPC}\)</strong>: coste de operación del ESS según el número de ciclos utilizados</li>
+</ul>
+
+<h4>Recompensa total</h4>
+<div class="formula-block">
+  \[ R^\text{sum} = R^\text{in} + R^\text{MGA} - R^\text{CPC} - R^\text{SDC} - R^\text{cap} - R^\text{base} \]
+</div>
+<p>El agente maximiza esta suma: gana por ahorrar en energía y por ventas al MGA; pierde por costes operativos, autodescarga y penalizaciones por violaciones de capacidad.</p>
+
+<hr>
+
+<h2 id="pseudocodigo">7. Pseudocódigo: Algoritmo DDPG</h2>
+
+<div class="algo"><span class="kw">Algoritmo 1</span>  Deep Deterministic Policy Gradient (DDPG)
+
+<span class="num"> 1:</span>  Inicializa el crítico  Q_θ(s,a)  y el actor  μ_φ(s)  aleatoriamente
+<span class="num"> 2:</span>  Inicializa el crítico objetivo  Q̂_θ̂(s,a),  establece  θ̂ ← θ
+<span class="num"> 3:</span>  Inicializa el actor objetivo   μ̂_φ̂(s),   establece  φ̂ ← φ
+<span class="num"> 4:</span>  Inicializa la memoria de repetición (replay buffer)
+<span class="num"> 5:</span>  <span class="kw">para</span>  t = 0, 1, 2, ..., T  <span class="kw">hacer:</span>
+<span class="num"> 6:</span>      Observar el estado  s_t
+<span class="num"> 7:</span>      Elegir acción  a_t = μ_φ(s_t)                  <span class="cmt">← actor selecciona acción</span>
+<span class="num"> 8:</span>      Ejecutar  a_t, observar recompensa  r_t  y siguiente estado  s_{t+1}
+<span class="num"> 9:</span>      Almacenar transición  ⟨s_t, a_t, r_t, s_{t+1}⟩  en memoria
+<span class="num">10:</span>      Muestrear mini-lote  ⟨s_i, a_i, r_i, s_{i+1}⟩  de la memoria
+<span class="num">11:</span>      Calcular objetivo  y_i = r_i + γ · Q̂_θ̂(s_{i+1}, μ̂_φ̂(s_{i+1}))  <span class="cmt">← usa red objetivo</span>
+<span class="num">12:</span>      Pérdida del crítico:  L_i(θ) = E[(y_i − Q_θ(s_i, a_i))²]
+<span class="num">13:</span>      Descenso de gradiente sobre  θ  usando  L(θ)               <span class="cmt">← actualiza crítico</span>
+<span class="num">14:</span>      Pérdida del actor:  ∇_φ J(φ) = E[∇_a Q_θ(s,a)|_{a=μ(s)} · ∇_φ μ_φ(s)]
+<span class="num">15:</span>      Ascenso de gradiente sobre  φ  usando  ∇_φ J(φ)            <span class="cmt">← actualiza actor</span>
+<span class="num">16:</span>      Actualizar pesos crítico objetivo:  θ̂ ← τθ + (1−τ)θ̂
+<span class="num">17:</span>      Actualizar pesos actor objetivo:    φ̂ ← τφ + (1−τ)φ̂
+<span class="num">18:</span>  <span class="kw">fin para</span></div>
+
+<hr>
+
+<h2 id="resumen">8. Resumen General</h2>
+
+<blockquote>
+  El artículo aplica <strong>MADDPG</strong> para gestionar una microrred híbrida con tres tipos de almacenamiento (litio + vanadio + supercondensador), generación solar y eólica, y comercio con 5 microrredes externas mediante subasta. Los agentes aprenden de forma autónoma a <strong>ahorrar en electricidad comprando cuando el precio es bajo, maximizando el uso de renovables y vendiendo energía sobrante al mejor postor</strong> — sin necesitar ningún modelo matemático previo del entorno.
+</blockquote>
+
+<table>
+  <tr><th>Concepto</th><th>Significado clave</th></tr>
+  <tr><td><strong>MADDPG</strong></td><td>Múltiples agentes RL que aprenden juntos (observan todo) pero actúan de forma independiente</td></tr>
+  <tr><td><strong>HESS</strong></td><td>Sistema de almacenamiento híbrido con 3 tecnologías complementarias (LIB + VRB + SC)</td></tr>
+  <tr><td><strong>Arbitraje energético</strong></td><td>Comprar energía barata, almacenarla, usarla o venderla cuando conviene</td></tr>
+  <tr><td><strong>RES</strong></td><td>Fuentes renovables (solar + eólica) con producción impredecible</td></tr>
+  <tr><td><strong>xMG</strong></td><td>Microrredes externas que compiten en subasta por energía sobrante</td></tr>
+  <tr><td><strong>MGA</strong></td><td>Agente agregador — decide cuánta energía vender y a qué precio mínimo</td></tr>
+  <tr><td><strong>Experience Replay</strong></td><td>Buffer que guarda experiencias pasadas para re-aprender de ellas (off-policy)</td></tr>
+  <tr><td><strong>Actor-Crítico</strong></td><td>El actor decide la acción; el crítico la evalúa y guía la mejora del actor</td></tr>
+  <tr><td><strong>DDPG</strong></td><td>Base: actor-crítico para acciones continuas con redes objetivo y replay buffer</td></tr>
+  <tr><td><strong>D3PG</strong></td><td>Mejora: modela la distribución completa de retornos (no solo el valor esperado)</td></tr>
+  <tr><td><strong>TD3</strong></td><td>Mejora: dos críticos para evitar sobreestimación + actualización retrasada del actor</td></tr>
+  <tr><td><strong>Contribución marginal</strong></td><td>Cuánto aportó un agente al objetivo conjunto — clave para la recompensa en MADDPG</td></tr>
+  <tr><td><strong>\(\gamma\) (descuento)</strong></td><td>Cuánto valora el agente las recompensas futuras vs. las inmediatas</td></tr>
+  <tr><td><strong>\(\tau\) (suavizado)</strong></td><td>Velocidad a la que las redes objetivo siguen a las redes principales</td></tr>
+</table>
+
+
+<!-- ========================================================= -->
+<h2 id="param">8. Parámetros del entorno</h2>
+
+<h3>8.1. Propiedades de los ESS (Tabla 1)</h3>
+<table>
+  <tr><th>ESS</th><th>Capacidad C<sub>max</sub></th><th>Potencia X<sub>max</sub></th><th>η<sub>SDC</sub>/h</th><th>η<sub>RTE</sub></th><th>Coste capacidad</th><th>Ciclos de vida</th><th>P<sub>CPC</sub></th></tr>
+  <tr><td><strong>LIB</strong></td><td>2 MWh</td><td>1 MW</td><td>99.99 %</td><td>95 %</td><td>£100/kWh</td><td>5 000</td><td>£40/ciclo</td></tr>
+  <tr><td><strong>VRB</strong></td><td>2 MWh</td><td>1 MW</td><td>100 %</td><td>80 %</td><td>£200/kWh</td><td>10 000</td><td>£40/ciclo</td></tr>
+  <tr><td><strong>SC</strong></td><td>2 MWh</td><td>1 MW</td><td>99 %</td><td>95 %</td><td>£300/kWh</td><td>100 000</td><td>£6/ciclo</td></tr>
+</table>
+<p>La carga de cada ESS \(c_t\) se actualiza con:</p>
+<div class="formula-block">
+  \[ c_t = x_t\sqrt{\eta_\text{RTE}} + c_{t-1}\,\eta_\text{SDC} \]
+</div>
+<table>
+  <tr><th>Término</th><th>Qué significa</th></tr>
+  <tr><td>\(x_t\)</td><td>Potencia de carga (positiva) o descarga (negativa) en el paso \(t\)</td></tr>
+  <tr><td>\(\sqrt{\eta_\text{RTE}}\)</td><td>Raíz de la eficiencia de ciclo (RTE) — se aplica la mitad al cargar y la otra mitad al descargar</td></tr>
+  <tr><td>\(c_{t-1}\,\eta_\text{SDC}\)</td><td>Carga residual del paso anterior reducida por autodescarga; para el SC con η=99%, pierde ~1% por hora</td></tr>
+</table>
+
+<p>El coste de operación por ciclos (CPC) se incluye en la recompensa:</p>
+<div class="formula-block">
+  \[ R_t^\text{CPC} = 0.5\, P_\text{CPC} \left(\frac{c_t - c_{t-1}}{C_\text{max}}\right)^2 \]
+</div>
+<p>El factor 0.5 refleja que cada paso se cuenta como medio ciclo (un ciclo completo = cargar de vacío a lleno y volver a vacío).</p>
+
+<p>Penalización por violación de capacidad:</p>
+<div class="formula-block">
+  \[ R_t^\text{cap} = \begin{cases} P_\text{max}\,(\dot{c}_t)^2 / X_\text{max} & \dot{c}_t < 0 \\[4pt] 0 & 0 \le \dot{c}_t \le C_\text{max} \\[4pt] P_\text{max}\,(\dot{c}_t - C_\text{max})^2 / X_\text{max} & \dot{c}_t > C_\text{max} \end{cases} \]
+</div>
+<p>Donde \(\dot{c}_t\) es la carga teórica <em>después</em> de aplicar la acción. Si queda dentro de los límites, no hay penalización. Si la supera, el agente recibe una señal cuadrática proporcional al exceso.</p>
+
+<h3>8.2. Modelo de generación renovable</h3>
+
+<h4>Fotovoltaica (PV)</h4>
+<p>La salida PV se calcula a partir de datos de radiación solar horaria escalada a una granja de <strong>máx. 5 MW</strong>.</p>
+
+<h4>Eólica (WT) — curva de potencia</h4>
+<div class="formula-block">
+  \[ X^\text{WT} = \begin{cases} 0 & v < v_{ci}\text{ o }v > v_{co} \\[4pt] \dfrac{1}{2}\rho\pi r^2 c_p\, v^3 & v_{ci} \le v < v_r \\[8pt] X^\text{WT}_\text{rated} & v_r \le v \le v_{co} \end{cases} \]
+</div>
+<table>
+  <tr><th>Parámetro</th><th>Valor</th><th>Descripción</th></tr>
+  <tr><td>\(v_{ci}\)</td><td>3 m/s</td><td>Velocidad de arranque — por debajo no genera</td></tr>
+  <tr><td>\(v_r\)</td><td>12 m/s</td><td>Velocidad nominal — a partir de aquí la potencia es máxima</td></tr>
+  <tr><td>\(v_{co}\)</td><td>25 m/s</td><td>Velocidad de parada — demasiado viento, el aerogenerador se desconecta</td></tr>
+  <tr><td>\(r\)</td><td>30 m</td><td>Radio de las palas</td></tr>
+  <tr><td>\(c_p\)</td><td>0.4</td><td>Coeficiente de potencia (fracción del viento convertida en electricidad)</td></tr>
+  <tr><td>\(X^\text{WT}_\text{rated}\)</td><td>1 MW</td><td>Potencia nominal de cada turbina. Se usan <strong>2 turbinas</strong> → 2 MW máx.</td></tr>
+</table>
+
+<h3>8.3. Transformadores e inversores</h3>
+<p>La microrred es una red AC/DC híbrida. Los inversores y transformadores presentan <strong>perfiles de eficiencia no lineales</strong> (modelados con estimación polinomial) que dependen del factor de carga. La eficiencia mínima se fija al 10% para evitar divisiones por cero. El sistema usa automáticamente el inversor o combinación de inversores que minimice las pérdidas.</p>
+
+<h3>8.4. Mercado mayorista</h3>
+<div class="card purple">
+  <span class="tag" style="background:#6a1b9a">Doble régimen de precios</span><br><br>
+  <ul>
+    <li>Compra: precios dinámicos del mercado en tiempo real (UK) con cap en <strong>P<sub>max</sub> = £144/MWh</strong> — si el mercado supera ese valor, compra a la red a tarifa plana.</li>
+    <li>Venta: tarifa de inyección fija de <strong>P<sub>min</sub> = £16/MWh</strong> (tarifa equivalente a un parque eólico 0.1–1.5 MW instalado tras enero 2019).</li>
+  </ul>
+  Esta asimetría es el motor del arbitraje: comprar barato (≈£16–40) y usar/vender caro (evitar comprar a £100+).
+</div>
+
+<hr>
+
+<!-- ========================================================= -->
+<h2 id="mga">9. Propiedades del MGA y las xMGs</h2>
+
+<h3>9.1. Proceso de subasta (Algoritmo 2)</h3>
+<p>Cada hora, el MGA decide la energía disponible y el precio de reserva. Todas las xMGs pujan simultáneamente y el MGA adjudica al mejor postor hasta agotar el stock:</p>
+
+<div class="algo"><span class="kw">Algoritmo 2</span>  Paso de puja MGA–xMG
+
+<span class="num"> 1:</span>  <span class="kw">Entrada</span>: volumen MGA = XMGA,  precio de reserva = PMGA
+<span class="num"> 2:</span>  <span class="kw">Entrada</span>: volúmenes de puja xMG  [x¹, x², x³, x⁴, x⁵]
+<span class="num"> 3:</span>  <span class="kw">Entrada</span>: precios de puja xMG    [p¹, p², p³, p⁴, p⁵]
+<span class="num"> 4:</span>  Inicializa recompensa  R_MGA = 0
+<span class="num"> 5:</span>  <span class="kw">mientras</span>  XMGA > 0  y  alguna xMG tiene volumen  <span class="kw">hacer:</span>
+<span class="num"> 6:</span>      i ← xMG con puja más alta  (argmax p_xMG)
+<span class="num"> 7:</span>      <span class="kw">si</span>  p_xMG[i] > PMGA  <span class="kw">entonces</span>
+<span class="num"> 8:</span>          Volumen adjudicado  x_bid = min(XMGA, x_xMG[i])
+<span class="num"> 9:</span>          R_MGA  ←  R_MGA + 0.8 · p_xMG[i] · x_bid   <span class="cmt">← MGA cobra 80% del precio pujado</span>
+<span class="num">10:</span>          XMGA  ←  XMGA − x_bid
+<span class="num">11:</span>      <span class="kw">fin si</span>
+<span class="num">12:</span>      Eliminar xMG i de la subasta
+<span class="num">13:</span>  <span class="kw">fin mientras</span>
+<span class="num">14:</span>  Energía no vendida: R_MGA  ←  R_MGA + Pmin · XMGA   <span class="cmt">← devuelve a red a £16/MWh</span></div>
+
+<div class="card blue">
+  <strong>Dinámica de la subasta:</strong> el MGA puede restringir el volumen ofertado para forzar competencia entre xMGs y obtener mejores precios. Las xMGs aprenden que comprar al MGA es más barato que a la red (Pmax = £144), pero también aprenden a no pujar más de lo necesario para ganar.
+</div>
+
+<h3>9.2. Propiedades de las xMGs</h3>
+<p>Cada xMG tiene una demanda a una escala de 1/20 de la microrred principal más ruido gaussiano:</p>
+<div class="formula-block">
+  \[ X_t^{xMG, D} = 0.05\, X_t^D + \mathcal{N}(0,\; 0.01) \]
+</div>
+<p>Si la xMG no consigue suficiente energía del MGA, compra el resto a la red al precio máximo P<sub>max</sub>. Si compra de más, vende el excedente a P<sub>min</sub>.</p>
+
+<hr>
+
+<!-- ========================================================= -->
+<h2 id="simsetup">10. Configuración de la simulación</h2>
+
+<h3>10.1. Estructura temporal</h3>
+<ul>
+  <li>Cada paso = 1 hora real</li>
+  <li>Cada episodio = 168 horas = 1 semana</li>
+  <li>Total: <strong>200 episodios (semanas)</strong> = 33 600 pasos — mucho menos que los millones típicos en RL</li>
+  <li>El agente comienza a aprender tras 500 pasos; los primeros 1000 son acciones aleatorias para poblar el buffer</li>
+  <li>Semanas 1–100: ajuste de hiperparámetros; semanas 101–200: evaluación</li>
+</ul>
+
+<h3>10.2. Hiperparámetros (Tabla 2)</h3>
+<table>
+  <tr><th>Hiperparámetro</th><th>Valor</th></tr>
+  <tr><td>Learning rate — Actor</td><td>5 × 10⁻⁴</td></tr>
+  <tr><td>Learning rate — Crítico</td><td>1 × 10⁻³</td></tr>
+  <tr><td>Dimensiones capa oculta</td><td>256 neuronas</td></tr>
+  <tr><td>Activación capa oculta</td><td>ReLU</td></tr>
+  <tr><td>Tamaño de mini-lote</td><td>64 muestras</td></tr>
+  <tr><td>Actualización objetivo τ</td><td>0.005</td></tr>
+  <tr><td>Factor de descuento γ</td><td>0.99</td></tr>
+  <tr><td>Límites D3PG (V<sub>min</sub>, V<sub>max</sub>)</td><td>−10, 10</td></tr>
+  <tr><td>Pasos retardo actor TD3</td><td>2</td></tr>
+</table>
+<p>Estos valores se encontraron mediante búsqueda en rejilla (<em>grid search</em>) sobre las 100 primeras semanas. Se aplican a <em>todas</em> las variantes de DDPG para comparación justa.</p>
+
+<p>La recompensa se normaliza para estabilizar el aprendizaje:</p>
+<div class="formula-block">
+  \[ r_t = 0.01 \cdot N_\text{agents} \cdot R^\text{sum} \]
+</div>
+<p>Esto mantiene la recompensa recibida típicamente entre −1 y +1, independientemente del número de agentes o la magnitud de los costes energéticos en libras.</p>
+
+<hr>
+
+<!-- ========================================================= -->
+<h2 id="benchmarks">11. Benchmarks de comparación</h2>
+
+<h3>11.1. MADQN — Multi-Agent Deep Q-Networks</h3>
+<p>DQN evalúa acciones con una red neuronal pero <em>no</em> tiene actor separado — siempre selecciona la acción de valor máximo. Esto lo hace más robusto a la sintonía de hiperparámetros, pero lo limita a <strong>espacios de acción discretos</strong>. En este benchmark cada agente actúa de forma independiente considerando a los demás como parte del entorno, con la misma recompensa de contribución marginal. Cada agente MADQN selecciona entre <strong>5 acciones discretas</strong>.</p>
+
+<h3>11.2. MARainbow</h3>
+<p>Versión mejorada de DQN que combina múltiples mejoras (prioridad de experiencias, distribucional, etc.). Puede usar espacios discretos más grandes — cada agente selecciona entre <strong>9 acciones</strong>. En trabajo previo Rainbow superó a DDPG en entornos de un solo ESS, pero aquí el control continuo de DDPG tiene ventaja en el entorno multi-ESS complejo.</p>
+
+<h3>11.3. RBM — Rule-Based Model (modelo basado en reglas)</h3>
+<p>Enfoque determinista clásico: carga los ESS cuando la generación renovable supera la demanda, los descarga cuando ocurre lo contrario. Prioriza SC → LIB → VRB. <strong>No reacciona a señales de precio</strong> y queda completamente inactivo las semanas en que las renovables nunca superan la demanda.</p>
+
+<div class="card orange">
+  <strong>¿Por qué no se usa optimización lineal (LP)?</strong><br><br>
+  Los precios dependen de si el agente compra o vende (asimetría), más la demanda y las RES — el problema es <strong>no lineal</strong> y no existen métodos eficientes de programación no lineal para este entorno.
+</div>
+
+<hr>
+
+<!-- ========================================================= -->
+<h2 id="resultados">12. Resultados</h2>
+
+<h3>12.1. Caso de estudio 1 — Control del HESS</h3>
+<p>Solo los agentes ESS actúan; el MGA y las xMGs no están presentes. Resultados sobre el período de evaluación (semanas 101–200):</p>
+
+<table>
+  <tr><th>Algoritmo</th><th>Ahorro (£k)</th><th>Ahorro ajustado (£k)</th><th>vs. DDPG</th><th>Pérdida ESS %</th></tr>
+  <tr><td>DDPG</td><td>42.92</td><td>34.39</td><td>—</td><td>19.87 %</td></tr>
+  <tr><td>D3PG</td><td>48.78</td><td>40.78</td><td>+18.58 %</td><td>16.40 %</td></tr>
+  <tr><td>TD3</td><td>46.69</td><td>39.93</td><td>+16.11 %</td><td>14.48 %</td></tr>
+  <tr><td><strong>MADDPG</strong></td><td><strong>59.58</strong></td><td>53.24</td><td>+54.81 %</td><td>10.64 %</td></tr>
+  <tr><td><strong>MAD3PG</strong></td><td>59.50</td><td><strong>53.44</strong></td><td><strong>+55.39 %</strong></td><td><strong>10.18 %</strong></td></tr>
+  <tr><td>MATD3</td><td>56.19</td><td>50.06</td><td>+45.57 %</td><td>10.91 %</td></tr>
+  <tr><td>MADQN</td><td>47.28</td><td>36.32</td><td>+5.61 %</td><td>23.18 %</td></tr>
+  <tr><td>MARainbow</td><td>52.01</td><td>43.90</td><td>+27.65 %</td><td>15.59 %</td></tr>
+  <tr><td>RBM</td><td>40.93</td><td>33.02</td><td>−3.98 %</td><td>19.33 %</td></tr>
+</table>
+
+<div class="card teal">
+  <strong>Hallazgos clave del Caso 1:</strong>
+  <ul>
+    <li>Los métodos multi-agente superan ampliamente al <mark style="background:#ffccbc; padding:2px 4px; border-radius:3px;">🔴 controlador global único</mark> — MAD3PG es un 55.4% mejor que DDPG.</li>
+    <li>La mejora proviene principalmente de la recompensa de <strong>contribución marginal</strong> (MAS-MC), no del simple control distribuido.</li>
+    <li>Los agentes multi-agente aprenden políticas diferenciadas para cada tipo de ESS (LIB/VRB/SC), algo que el <mark style="background:#ffccbc; padding:2px 4px; border-radius:3px;">🔴 agente único</mark> no consigue porque tiene una sola función de recompensa para los tres.</li>
+    <li>MADQN supera a DDPG a pesar del espacio de acción discreto limitado — demuestra el valor del enfoque multi-agente incluso con un algoritmo más sencillo.</li>
+    <li>RBM queda <em>por debajo</em> de todos los métodos RL en ahorros ajustados y está completamente inactivo en semanas sin excedente renovable.</li>
+  </ul>
+</div>
+
+<h4>Comportamiento de los agentes</h4>
+<p>La mayoría de los agentes:</p>
+<ul>
+  <li>Almacenan energía PV alrededor del mediodía (precio bajo, renovable alta) para descargarla a última hora de la tarde (precio máximo)</li>
+  <li>También cargan a primera hora de la mañana cuando los precios son más bajos</li>
+  <li>Evitan cargar y descargar a potencia máxima para reducir el coste por ciclos (CPC)</li>
+  <li>Usan el LIB más que los demás por su equilibrio de propiedades</li>
+</ul>
+<p>Excepción notable: <strong>MAD3PG</strong> usa el SC más agresivamente, seguido del LIB y casi nada el VRB — y obtiene los mejores ahorros ajustados.</p>
+
+<hr>
+
+<h3>12.2. Caso de estudio 2 — Comercio con xMGs</h3>
+<p>Se añaden el agente MGA y 5 agentes xMG. Resultados completos (semanas 101–200):</p>
+
+<table>
+  <tr><th>Algoritmo</th><th>Ahorro (£k)</th><th>Ahorro ajustado (£k)</th><th>vs. DDPG</th><th>Pérdida ESS %</th><th>Ingresos MGA (£k)</th><th>MGA % del total</th></tr>
+  <tr><td>DDPG</td><td>151.38</td><td>146.46</td><td>—</td><td>3.25 %</td><td>129.17</td><td>88.19 %</td></tr>
+  <tr><td>D3PG</td><td>158.35</td><td>156.75</td><td>+7.03 %</td><td>1.01 %</td><td>154.39</td><td>98.49 %</td></tr>
+  <tr><td>TD3</td><td>174.04</td><td>170.63</td><td>+16.50 %</td><td>1.96 %</td><td>157.68</td><td>92.41 %</td></tr>
+  <tr><td>MADDPG</td><td>170.36</td><td>164.86</td><td>+12.56 %</td><td>3.23 %</td><td>124.72</td><td>75.65 %</td></tr>
+  <tr><td>MAD3PG</td><td>187.01</td><td>180.17</td><td>+23.02 %</td><td>3.66 %</td><td>135.84</td><td>75.40 %</td></tr>
+  <tr><td><strong>MATD3</strong></td><td><strong>190.54</strong></td><td><strong>186.00</strong></td><td><strong>+27.00 %</strong></td><td>2.38 %</td><td>144.68</td><td>77.78 %</td></tr>
+</table>
+
+<div class="card teal">
+  <strong>Hallazgos clave del Caso 2:</strong>
+  <ul>
+    <li>El comercio con xMGs triplica aproximadamente los ahorros versus solo gestionar el HESS (£146k vs £53k para DDPG ajustado).</li>
+    <li><strong>MATD3</strong> es el mejor con un +27% sobre DDPG — la corrección de sobreestimación de TD3 resulta especialmente útil cuando hay señales de recompensa muy grandes (comercio) que podrían llevar a políticas miopes.</li>
+    <li>D3PG destaca negativamente: hace el 98.5% de sus ahorros a través del MGA e ignora casi por completo el HESS — señal de sobreexplotación de la señal de recompensa más fácil.</li>
+    <li>Los métodos multi-agente dedican más esfuerzo al HESS (~75% vs ~88-98% para single-agent), combinando mejor las dos estrategias.</li>
+    <li>Beneficio tri-lateral: la microrred principal gana ingresos, las xMGs reducen su factura (compran a ≪ £144/MWh), y la carga de la red eléctrica nacional disminuye.</li>
+  </ul>
+</div>
+
+<h4>Comportamiento observado</h4>
+<p>Fases de aprendizaje típicas:</p>
+<ol>
+  <li><strong>Primeros ~20 episodios:</strong> las xMGs aprenden rápidamente que el MGA es más barato que la red → intentan comprar el máximo. El MGA aprende una de dos estrategias iniciales: vender todo al mínimo (pierde dinero cuando las xMGs bajan sus pujas) o no vender nada al máximo (aprende lentamente a encontrar el equilibrio)</li>
+  <li><strong>Tras ~100 episodios:</strong> equilibrio — el MGA restringe el volumen para forzar competencia entre xMGs sin saturar el mercado</li>
+</ol>
+
+<h3>12.3. Mejoras propuestas y trabajo futuro</h3>
+<ul>
+  <li>Añadir ESS y RES propias a las xMGs, con sus propios agentes agregadores que comercien entre ellas</li>
+  <li>Usar precios de un mercado <em>day-ahead</em> (24h de antelación) en vez del mercado en tiempo real para mayor realismo</li>
+  <li>Modelar la tarifa de inyección con variación según tipo y volumen de energía vendida</li>
+  <li>Ampliar el horizonte de predicción para que los agentes puedan aprovechar mejor el VRB (almacenamiento a muy largo plazo)</li>
+  <li>Explorar aprendizaje inter-agente diferencial (DIAL) para aplicar aprendizaje centralizado también a DQN/Rainbow</li>
+</ul>
+
+<hr>
+
+<!-- ========================================================= -->
+<h2 id="conclusion">13. Conclusión</h2>
+
+<blockquote>
+"El uso de aprendizaje por refuerzo multi-agente fue presentado para el control de un HESS en una microrred para aumentar la utilización de energías renovables, reducir las facturas energéticas y comerciar energía con xMGs."
+</blockquote>
+
+<p>Las conclusiones principales del artículo son:</p>
+
+<ol>
+  <li>
+    <strong>Multi-agente supera al controlador global</strong> (MAD3PG +55% sobre DDPG en el Caso 1)
+    <div class="card blue" style="margin-top:12px">
+      <strong>¿Por qué el enfoque multi-agente gana?</strong><br><br>
+      Imagina que tienes tres trabajadores especializados (LIB, VRB, SC) y un jefe que intenta dirigirles a los tres a la vez versus tres supervisores, uno para cada trabajador.
+      <br><br>
+      <mark style="background:#ffccbc; padding:2px 4px; border-radius:3px;"><strong>🔴 Controlador global único (SGC):</strong></mark>
+      <ul>
+        <li>Una sola red neuronal genera tres acciones (una por ESS) y recibe <em>una sola señal de recompensa</em> para actualizar todos sus pesos.</li>
+        <li>El agente no puede saber fácilmente <em>cuál de las tres decisiones</em> fue la buena o la mala — si el LIB descargó bien pero el SC descargó mal en el mismo paso, la recompensa combinada mezcla ambos efectos y el agente aprende con señal ruidosa.</li>
+        <li>Tiende a operar los tres ESSs de forma similar porque su política no puede especializarse en las características de cada uno.</li>
+      </ul>
+      <strong>Controladora multi-agente (MADDPG):</strong>
+      <ul>
+        <li>Cada ESS tiene su propio actor, su propio crítico y su propia función de recompensa basada en <em>contribución marginal</em>: "¿cuánto ahorró la red gracias específicamente a <em>mi</em> acción, respecto a si yo no hubiera hecho nada?"</li>
+        <li>La señal de aprendizaje es mucho más limpia — el agente del LIB recibe retroalimentación exclusivamente sobre las consecuencias de las acciones del LIB, sin ruido de los otros dos.</li>
+        <li>Cada agente puede desarrollar una política especializada: el SC aprende a reaccionar rápido a fluctuaciones del día, el LIB aprende un ciclo diario estable, el VRB aprende almacenamiento de varios días — aprovechando sus ventajas naturales.</li>
+      </ul>
+      <strong>En números:</strong> los métodos multi-agente también producen una <em>menor pérdida por operación del ESS</em> (10–11% vs 14–20% en agentes únicos), lo que confirma que cada ESS es gestionado de forma más eficiente energéticamente.
+    </div>
+  </li>
+  <li><strong>La contribución marginal es la clave</strong> — la mejora no viene del simple control distribuido, sino del diseño de recompensa inteligente: cada agente es recompensado por su contribución incremental al objetivo compartido.</li>
+  <li><strong>El comercio con xMGs es transformador</strong> — vender energía en los propios términos de la microrred es mucho más rentable que solo optimizar el uso de renovables o vender a la red a tarifa fija.</li>
+  <li><strong>TD3 brilla en entornos competitivos</strong> — la corrección de sobreestimación evita que los agentes se focalicen exclusivamente en el MGA e ignoren el valor complementario del HESS.</li>
+  <li><strong>El beneficio es tri-lateral</strong> — la microrred principal obtiene ingresos adicionales, las xMGs reducen sus facturas, y la carga de la red eléctrica nacional disminuye.</li>
+</ol>
+
+<hr>
+
+</body>
+</html>

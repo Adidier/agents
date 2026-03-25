@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>benchmarks.py — Explicación detallada</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #20243a;
+      --border: #2e3250;
+      --accent: #6c8cff;
+      --accent2: #ff7c5c;
+      --accent3: #40cfa0;
+      --accent4: #f5c542;
+      --text: #e0e4f0;
+      --text-muted: #8890aa;
+      --code-bg: #11141e;
+      --rbm-color: #8b5cf6;
+      --dqn-color: #3b82f6;
+      --net-color: #10b981;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      padding: 0;
+    }
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(135deg, #0d1b4b 0%, #1a0d3b 50%, #0d2b1b 100%);
+      padding: 60px 40px 50px;
+      border-bottom: 2px solid var(--border);
+      text-align: center;
+    }
+    .hero .badge {
+      display: inline-block;
+      background: rgba(108,140,255,0.15);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      border-radius: 20px;
+      padding: 4px 16px;
+      font-size: 0.75rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+    .hero h1 {
+      font-size: 2.6rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #a0b4ff, #ff9f7c);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+    .hero p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    /* ── Layout ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 40px 30px; }
+    /* ── Section ── */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 32px 36px;
+      margin-bottom: 32px;
+    }
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin-bottom: 22px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-title .icon {
+      width: 38px; height: 38px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin: 24px 0 10px;
+    }
+    h3:first-child { margin-top: 0; }
+    p { margin-bottom: 12px; color: var(--text); }
+    /* ── Code blocks ── */
+    pre, code {
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      margin: 14px 0;
+    }
+    code {
+      background: rgba(108,140,255,0.1);
+      color: var(--accent);
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 0.88em;
+    }
+    pre code {
+      background: none;
+      color: inherit;
+      padding: 0;
+      font-size: inherit;
+    }
+    /* ── Colors in code ── */
+    .kw  { color: #c792ea; }
+    .fn  { color: #82aaff; }
+    .str { color: #c3e88d; }
+    .num { color: #f78c6c; }
+    .cmt { color: #546e7a; font-style: italic; }
+    .cls { color: #ffcb6b; }
+    .op  { color: #89ddff; }
+    /* ── Cards grid ── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-top: 18px;
+    }
+    .card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px 24px;
+    }
+    .card .card-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card p { color: var(--text-muted); font-size: 0.9rem; }
+    /* ── Tables ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 0.9rem;
+    }
+    th {
+      background: var(--surface2);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 16px;
+      border-bottom: 2px solid var(--border);
+    }
+    td {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    /* ── Callouts ── */
+    .callout {
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin: 16px 0;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      font-size: 0.93rem;
+    }
+    .callout.info  { background: rgba(108,140,255,0.1); border-left: 4px solid var(--accent); }
+    .callout.warn  { background: rgba(245,197,66,0.1); border-left: 4px solid var(--accent4); }
+    .callout.tip   { background: rgba(64,207,160,0.1); border-left: 4px solid var(--accent3); }
+    .callout .icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 2px; }
+    /* ── Flow diagram ── */
+    .flow {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 18px 0;
+      font-size: 0.88rem;
+    }
+    .flow-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      text-align: center;
+      min-width: 100px;
+    }
+    .flow-box.highlight { border-color: var(--accent); color: var(--accent); }
+    .flow-arrow { color: var(--text-muted); font-size: 1.2rem; }
+    /* ── Architecture diagram ── */
+    .arch {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      margin: 18px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-family: monospace;
+    }
+    .arch-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
+    .arch-box {
+      border-radius: 8px;
+      padding: 8px 18px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .arch-box.input  { background: rgba(108,140,255,0.2); border: 1px solid var(--accent); color: var(--accent); }
+    .arch-box.hidden { background: rgba(64,207,160,0.2);  border: 1px solid var(--accent3); color: var(--accent3); }
+    .arch-box.output { background: rgba(255,124,92,0.2);  border: 1px solid var(--accent2); color: var(--accent2); }
+    .arch-arrow { color: var(--text-muted); }
+    /* ── Priority chain (RBM) ── */
+    .priority {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin: 18px 0;
+      flex-wrap: wrap;
+    }
+    .prio-item {
+      padding: 14px 22px;
+      border-radius: 0;
+      text-align: center;
+      flex: 1;
+      min-width: 130px;
+    }
+    .prio-item:first-child { border-radius: 10px 0 0 10px; }
+    .prio-item:last-child  { border-radius: 0 10px 10px 0; }
+    .prio-item .label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    .prio-item .name  { font-size: 1rem; font-weight: 700; }
+    .prio-item.p1 { background: rgba(139,92,246,0.25); border: 1px solid #8b5cf6; color: #c4b5fd; }
+    .prio-item.p2 { background: rgba(59,130,246,0.25); border: 1px solid #3b82f6; color: #93c5fd; border-left: none; }
+    .prio-item.p3 { background: rgba(16,185,129,0.25); border: 1px solid #10b981; color: #6ee7b7; border-left: none; }
+    /* ── Agent cards ── */
+    .agent-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+      margin: 18px 0;
+    }
+    .agent-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      text-align: center;
+    }
+    .agent-card .agent-name { font-weight: 700; font-size: 1.1rem; margin-bottom: 6px; }
+    .agent-card .agent-sub  { font-size: 0.8rem; color: var(--text-muted); }
+    /* ── Badge inline ── */
+    .pill {
+      display: inline-block;
+      border-radius: 12px;
+      padding: 2px 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .pill.blue   { background: rgba(59,130,246,0.2);  color: #93c5fd; }
+    .pill.purple { background: rgba(139,92,246,0.2);  color: #c4b5fd; }
+    .pill.green  { background: rgba(16,185,129,0.2);  color: #6ee7b7; }
+    .pill.orange { background: rgba(249,115,22,0.2);  color: #fdba74; }
+    /* ── Responsive ── */
+    @media(max-width:700px){
+      .hero h1  { font-size: 1.8rem; }
+      .agent-grid { grid-template-columns: 1fr; }
+      .prio-item  { flex: none; width: 100%; }
+      .prio-item:first-child { border-radius: 10px 10px 0 0; }
+      .prio-item:last-child  { border-radius: 0 0 10px 10px; }
+      .prio-item.p2, .prio-item.p3 { border-left: 1px solid; border-top: none; }
+    }
+    /* ── TOC ── */
+    .toc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 26px 32px;
+      margin-bottom: 32px;
+    }
+    .toc h2 { font-size: 1rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; }
+    .toc ol { padding-left: 20px; }
+    .toc li { margin: 6px 0; }
+    .toc a  { color: var(--accent); text-decoration: none; font-size: 0.93rem; }
+    .toc a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════════
+     HERO
+═══════════════════════════════════════════════════════════════════════ -->
+<div class="hero">
+  <div class="badge">Simulación MADDPG · Section 4.4</div>
+  <h1>benchmarks.py</h1>
+  <p>Agentes de referencia no-DDPG implementados para comparar rendimiento
+     frente a los algoritmos de aprendizaje por refuerzo del paper.</p>
+</div>
+
+<div class="container">
+
+<!-- ── TOC ── -->
+<div class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#overview">Visión general del archivo</a></li>
+    <li><a href="#rbm">RBMAgent — Agente basado en reglas</a></li>
+    <li><a href="#dqn-net">_DQNNetwork — Red neuronal Q</a></li>
+    <li><a href="#dqn-agent">_DQNSingleAgent — Agente DQN independiente</a></li>
+    <li><a href="#discrete">_discrete_action_to_continuous — Mapeo de acciones</a></li>
+    <li><a href="#madqn">MADQNSystem — Sistema multi-agente DQN</a></li>
+    <li><a href="#comparison">Comparativa RBM vs MADQN vs MADDPG</a></li>
+    <li><a href="#usage">Cómo se usa en la simulación</a></li>
+  </ol>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════
+     1. VISIÓN GENERAL
+═══════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="overview">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(108,140,255,0.15);">📋</div>
+    1. Visión general del archivo
+  </div>
+
+  <p>
+    <code>benchmarks.py</code> implementa los <strong>dos algoritmos de referencia</strong>
+    (benchmarks) descritos en la Sección 4.4 del paper. Su propósito es tener una base de
+    comparación contra los algoritmos DDPG/MADDPG, para demostrar las ventajas del
+    aprendizaje por refuerzo profundo.
+  </p>
+
+  <div class="cards" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title" style="color:#8b5cf6;">
+        <span>🧮</span> RBMAgent
+      </div>
+      <p><strong>Rule-Based Model.</strong> No aprende nada. Aplica reglas
+         deterministas de prioridad: carga el ESS cuando hay exceso de
+         energía renovable y descarga cuando hay déficit. Orden fijo:
+         SC → LIB → VRB.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#3b82f6;">
+        <span>🧠</span> MADQNSystem
+      </div>
+      <p><strong>Multi-Agent Deep Q-Network.</strong> Tres agentes DQN
+         independientes (uno por ESS). Cada uno aprende su propia
+         función Q con espacio de acciones discreto (5 niveles) usando
+         Double DQN + replay buffer.</p>
+    </div>
+  </div>
+
+  <h3>Estructura de clases</h3>
+  <pre><code><span class="cmt"># Jerarquía de clases en benchmarks.py</span>
+
+<span class="cls">RBMAgent</span>                   <span class="cmt"># reglas deterministas puras</span>
+  └─ select_actions()        <span class="cmt"># devuelve acciones basadas en surplus/déficit</span>
+
+<span class="cls">_DQNNetwork</span>  (nn.Module)    <span class="cmt"># red neuronal Q: obs → Q(s,a)</span>
+  └─ forward()
+
+<span class="cls">_DQNSingleAgent</span>            <span class="cmt"># agente DQN individual (Double DQN)</span>
+  ├─ select_action()         <span class="cmt"># ε-greedy</span>
+  ├─ push()                  <span class="cmt"># guarda en replay buffer</span>
+  └─ update()                <span class="cmt"># entrena un paso</span>
+
+<span class="cls">MADQNSystem</span>                <span class="cmt"># coordina 3 × _DQNSingleAgent</span>
+  ├─ select_actions()
+  ├─ push()
+  └─ update()</span>
+
+<span class="fn">_discrete_action_to_continuous()</span>  <span class="cmt"># función de mapeo discreta→continua</span></code></pre>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════
+     2. RBMAgent
+═══════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="rbm">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(139,92,246,0.15);">🧮</div>
+    2. RBMAgent — Agente basado en reglas
+  </div>
+
+  <p>
+    El <strong>Rule-Based Model</strong> es la línea base más simple posible:
+    no tiene red neuronal, no aprende, y siempre toma la decisión
+    "físicamente obvia": si sobra energía renovable, carga; si falta, descarga.
+  </p>
+
+  <h3>Orden de prioridad (ESS_ORDER)</h3>
+  <p>El paper especifica que el SuperCaps (SC) responde más rápido, seguido
+     del Litio (LIB) y el Vanadio Redox (VRB). Esto se codifica como índices
+     de la lista de ESS del entorno:</p>
+
+  <div class="priority">
+    <div class="prio-item p1">
+      <div class="label">Prioridad 1</div>
+      <div class="name">SC (idx=2)</div>
+    </div>
+    <div class="prio-item p2">
+      <div class="label">Prioridad 2</div>
+      <div class="name">LIB (idx=0)</div>
+    </div>
+    <div class="prio-item p3">
+      <div class="label">Prioridad 3</div>
+      <div class="name">VRB (idx=1)</div>
+    </div>
+  </div>
+
+  <pre><code><span class="cls">ESS_ORDER</span> = [<span class="num">2</span>, <span class="num">0</span>, <span class="num">1</span>]   <span class="cmt"># SC=idx2, LIB=idx0, VRB=idx1</span></code></pre>
+
+  <h3>Lógica de select_actions()</h3>
+  <p>Recibe como parámetros el estado físico actual y devuelve una acción
+     por cada ESS en el rango <code>[-1, 1]</code>:</p>
+
+  <div class="flow">
+    <div class="flow-box">demand, pv, wt, ess_charges</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box highlight">surplus = pv+wt−demand</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box">surplus &gt; 0 ?</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="border-color:#8b5cf6;color:#c4b5fd;">Cargar SC→LIB→VRB</div>
+    <div class="flow-arrow" style="margin-left:8px;"> / </div>
+    <div class="flow-box" style="border-color:#f87171;color:#fca5a5;">Descargar SC→LIB→VRB</div>
+  </div>
+
+  <pre><code><span class="kw">def</span> <span class="fn">select_actions</span>(<span class="kw">self</span>, demand, pv_mw, wt_mw, ess_charges, ...):
+    surplus = pv_mw + wt_mw - demand  <span class="cmt"># positivo = exceso renovable</span>
+    actions = [<span class="num">0.0</span>, <span class="num">0.0</span>, <span class="num">0.0</span>]
+
+    <span class="kw">if</span> surplus &gt; <span class="num">0</span>:                     <span class="cmt"># cargar en orden de prioridad</span>
+        remaining = surplus
+        <span class="kw">for</span> idx <span class="kw">in</span> self.ESS_ORDER:
+            room = ess_c_max - ess_charges[idx]     <span class="cmt"># espacio disponible</span>
+            charge_mw = <span class="fn">min</span>(remaining, ess_x_max, room)
+            actions[idx] = charge_mw / ess_x_max   <span class="cmt"># normalizar a [-1,1]</span>
+            remaining -= charge_mw
+    <span class="kw">else</span>:                              <span class="cmt"># descargar en orden de prioridad</span>
+        deficit = -surplus
+        <span class="kw">for</span> idx <span class="kw">in</span> self.ESS_ORDER:
+            discharge_mw = <span class="fn">min</span>(deficit, ess_x_max, ess_charges[idx])
+            actions[idx] = -(discharge_mw / ess_x_max)
+            deficit -= discharge_mw
+
+    <span class="kw">return</span> actions</code></pre>
+
+  <div class="callout warn">
+    <div class="icon">⚠️</div>
+    <div><strong>Limitación clave:</strong> el RBM solo maximiza el uso de
+    renovables pero <strong>ignora completamente los precios de mercado</strong>.
+    No sabe si la electricidad vale £16/MWh o £144/MWh en ese momento.
+    Por eso los algoritmos RL lo superan ampliamente en ahorros económicos.</div>
+  </div>
+
+  <h3>Parámetros de entrada</h3>
+  <table>
+    <tr><th>Parámetro</th><th>Tipo</th><th>Descripción</th></tr>
+    <tr><td><code>demand</code></td><td>float (MW)</td><td>Demanda eléctrica actual de la microrred</td></tr>
+    <tr><td><code>pv_mw</code></td><td>float (MW)</td><td>Generación fotovoltaica en el paso actual</td></tr>
+    <tr><td><code>wt_mw</code></td><td>float (MW)</td><td>Generación eólica en el paso actual</td></tr>
+    <tr><td><code>ess_charges</code></td><td>List[float] (MWh)</td><td>Estado de carga actual de [LIB, VRB, SC]</td></tr>
+    <tr><td><code>ess_c_max</code></td><td>float (MWh)</td><td>Capacidad máxima por ESS (default: 2.0)</td></tr>
+    <tr><td><code>ess_x_max</code></td><td>float (MW)</td><td>Potencia máxima por ESS (default: 1.0)</td></tr>
+  </table>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════
+     3. _DQNNetwork
+═══════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="dqn-net">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(16,185,129,0.15);">🏗️</div>
+    3. _DQNNetwork — Red neuronal Q
+  </div>
+
+  <p>
+    Subclase privada de <code>nn.Module</code>. Implementa la arquitectura
+    de red neuronal que estima los valores Q para cada acción discreta.
+    El paper especifica 2 capas ocultas de 256 neuronas con activación ReLU
+    (Table 2).
+  </p>
+
+  <div class="arch">
+    <div class="arch-row">
+      <div class="arch-box input">Input<br/><small>obs_dim</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box hidden">Linear(256)<br/>ReLU</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box hidden">Linear(256)<br/>ReLU</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box output">Output<br/><small>n_actions Q-values</small></div>
+    </div>
+  </div>
+
+  <pre><code><span class="kw">class</span> <span class="cls">_DQNNetwork</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>, obs_dim, n_actions, hidden_dim=<span class="num">256</span>):
+        self.net = nn.Sequential(
+            nn.Linear(obs_dim, hidden_dim), nn.ReLU(),   <span class="cmt"># capa 1</span>
+            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),<span class="cmt"># capa 2</span>
+            nn.Linear(hidden_dim, n_actions),            <span class="cmt"># salida: Q(s,a_i)</span>
+        )
+
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="kw">self</span>, x):
+        <span class="kw">return</span> self.net(x)  <span class="cmt"># devuelve tensor [batch, n_actions]</span></code></pre>
+
+  <div class="callout tip">
+    <div class="icon">💡</div>
+    <div>La red devuelve <strong>un valor Q para cada acción posible</strong>
+    en el paso actual. La acción elegida es <code>argmax(Q)</code>.
+    Con 5 acciones la dimensión de salida es [batch, 5].</div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════
+     4. _DQNSingleAgent
+═══════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="dqn-agent">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(59,130,246,0.15);">🤖</div>
+    4. _DQNSingleAgent — Agente DQN independiente
+  </div>
+
+  <p>
+    Implementa un agente <strong>Double DQN completo</strong> para un único
+    ESS. Cada agente es completamente independiente: tiene su propia red,
+    su propio target network, su propio optimizer y su propio replay buffer.
+    Sigue el enfoque de Tampuu et al.
+  </p>
+
+  <h3>Componentes internos</h3>
+  <div class="cards">
+    <div class="card">
+      <div class="card-title" style="color:#3b82f6;">🔵 online (red activa)</div>
+      <p>Se actualiza en cada paso de entrenamiento. Se usa para seleccionar
+         acciones y calcular los Q-values actuales.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#8b5cf6;">🟣 target (red objetivo)</div>
+      <p>Copia de la red online actualizada suavemente con <code>τ=0.005</code>.
+         Proporciona los Q-targets estables en el cálculo de la pérdida Double DQN.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#10b981;">🟢 buffer (deque)</div>
+      <p>Replay buffer circular de 100,000 transiciones
+         <code>(s, a, r, s', done)</code>. Rompe las correlaciones temporales
+         muestreando mini-batches aleatorios.</p>
+    </div>
+  </div>
+
+  <h3>Exploración ε-greedy con decaimiento exponencial</h3>
+  <p>
+    El epsilon decae exponencialmente desde 1.0 (exploración total) hasta
+    0.05 (casi siempre greedy):
+  </p>
+  <pre><code><span class="cmt"># ε = ε_end + (ε_start - ε_end) × e^(−step / eps_decay)</span>
+<span class="kw">@property</span>
+<span class="kw">def</span> <span class="fn">epsilon</span>(<span class="kw">self</span>) -> float:
+    <span class="kw">return</span> self.eps_end + (self.eps_start - self.eps_end) * \
+           np.exp(-self._step / self.eps_decay)
+<span class="cmt">
+# Acción:
+#   - con prob ε  → acción aleatoria (exploración)
+#   - con prob 1-ε → argmax Q(s, ·)   (explotación)</span></code></pre>
+
+  <div class="callout info">
+    <div class="icon">ℹ️</div>
+    <div>Con <code>eps_decay=5000</code>, el agente alcanza ε≈0.37 a los 5,000 pasos,
+    y ε≈0.05 (prácticamente greedy) alrededor de los 20,000 pasos.</div>
+  </div>
+
+  <h3>Double DQN — Cálculo del target Q</h3>
+  <p>
+    La diferencia clave del Double DQN respecto al DQN clásico: la red
+    <em>online</em> elige la acción óptima en el siguiente estado, pero el
+    valor de esa acción lo estima la red <em>target</em>. Esto evita la
+    sobreestimación sistemática de Q:
+  </p>
+  <pre><code><span class="kw">with</span> torch.no_grad():
+    <span class="cmt"># 1) Red online elige la mejor acción en s' (evita maximization bias)</span>
+    next_actions = <span class="kw">self</span>.online(next_obs_t).argmax(dim=<span class="num">1</span>, keepdim=<span class="kw">True</span>)
+
+    <span class="cmt"># 2) Red target evalúa el valor de esa acción</span>
+    next_q = <span class="kw">self</span>.target(next_obs_t).gather(<span class="num">1</span>, next_actions)
+
+    <span class="cmt"># 3) Ecuación de Bellman:</span>
+    target_q = rew_t + (1.0 - done_t) * self.gamma * next_q
+
+<span class="cmt"># 4) Pérdida MSE entre Q actual y Q target</span>
+current_q = <span class="kw">self</span>.online(obs_t).gather(<span class="num">1</span>, act_t)
+loss = F.mse_loss(current_q, target_q)
+
+<span class="cmt"># 5) Actualización</span>
+<span class="kw">self</span>.opt.zero_grad()
+loss.backward()
+nn.utils.clip_grad_norm_(<span class="kw">self</span>.online.parameters(), <span class="num">1.0</span>)  <span class="cmt"># gradient clipping</span>
+<span class="kw">self</span>.opt.step()
+
+<span class="cmt"># 6) Soft update del target network: θ_target ← τ·θ_online + (1-τ)·θ_target</span>
+<span class="kw">for</span> p, tp <span class="kw">in</span> zip(self.online.parameters(), self.target.parameters()):
+    tp.data.copy_(self.tau * p.data + (<span class="num">1</span> - self.tau) * tp.data)</code></pre>
+
+  <h3>Hiperparámetros y sus valores</h3>
+  <table>
+    <tr><th>Parámetro</th><th>Valor</th><th>Significado</th></tr>
+    <tr><td><code>n_actions</code></td><td>5</td><td>Acciones discretas: {−1,−0.5,0,0.5,1}</td></tr>
+    <tr><td><code>hidden_dim</code></td><td>256</td><td>Neuronas por capa oculta (Table 2 del paper)</td></tr>
+    <tr><td><code>lr</code></td><td>1e-3</td><td>Tasa de aprendizaje Adam</td></tr>
+    <tr><td><code>gamma</code></td><td>0.99</td><td>Factor de descuento temporal</td></tr>
+    <tr><td><code>tau</code></td><td>0.005</td><td>Mezcla suave target network (Polyak)</td></tr>
+    <tr><td><code>batch_size</code></td><td>64</td><td>Muestras por paso de actualización</td></tr>
+    <tr><td><code>buffer_size</code></td><td>100,000</td><td>Capacidad del replay buffer</td></tr>
+    <tr><td><code>eps_start</code></td><td>1.0</td><td>ε inicial (exploración total)</td></tr>
+    <tr><td><code>eps_end</code></td><td>0.05</td><td>ε mínimo (casi greedy)</td></tr>
+    <tr><td><code>eps_decay</code></td><td>5,000</td><td>Pasos para decaer a 1/e</td></tr>
+  </table>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════
+     5. _discrete_action_to_continuous
+═══════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="discrete">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(245,197,66,0.15);">🔀</div>
+    5. _discrete_action_to_continuous — Mapeo de acciones
+  </div>
+
+  <p>
+    El DQN trabaja con acciones <strong>discretas</strong> (índices 0..4),
+    pero el entorno <code>HESSMicrogridEnv</code> espera acciones
+    <strong>continuas</strong> en <code>[−1, 1]</code>. Esta función
+    hace el mapeo lineal:
+  </p>
+
+  <pre><code><span class="kw">def</span> <span class="fn">_discrete_action_to_continuous</span>(idx: int, n_actions: int = <span class="num">5</span>) -> float:
+    <span class="kw">return</span> <span class="num">-1.0</span> + <span class="num">2.0</span> * idx / (n_actions - <span class="num">1</span>)</code></pre>
+
+  <h3>Tabla de mapeo (n_actions=5)</h3>
+  <table>
+    <tr><th>Índice discreto</th><th>Acción continua</th><th>Significado físico</th></tr>
+    <tr><td><span class="pill blue">0</span></td><td><code>−1.0</code></td><td>Descarga máxima (−X_max MW)</td></tr>
+    <tr><td><span class="pill blue">1</span></td><td><code>−0.5</code></td><td>Descarga media</td></tr>
+    <tr><td><span class="pill green">2</span></td><td><code>0.0</code></td><td>Inactivo (ni carga ni descarga)</td></tr>
+    <tr><td><span class="pill orange">3</span></td><td><code>+0.5</code></td><td>Carga media</td></tr>
+    <tr><td><span class="pill orange">4</span></td><td><code>+1.0</code></td><td>Carga máxima (+X_max MW)</td></tr>
+  </table>
+
+  <div class="callout tip">
+    <div class="icon">💡</div>
+    <div>El paper menciona también una variante <strong>Rainbow</strong> con 9 acciones
+    discretas, cubiertas por el mismo código cambiando <code>n_actions=9</code>.
+    La fórmula genera automáticamente pasos de 0.25 en vez de 0.5.</div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════
+     6. MADQNSystem
+═══════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="madqn">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(59,130,246,0.15);">🧠</div>
+    6. MADQNSystem — Sistema multi-agente DQN
+  </div>
+
+  <p>
+    <code>MADQNSystem</code> es el orquestador: instancia
+    <strong>3 agentes DQN independientes</strong> (uno por ESS) y expone
+    la misma interfaz que los sistemas MADDPG/DDPG para que
+    <code>case_study_1.py</code> los llame de forma transparente.
+  </p>
+
+  <div class="agent-grid">
+    <div class="agent-card" style="border-color:#3b82f6;">
+      <div class="agent-name" style="color:#93c5fd;">Agente 0</div>
+      <div class="agent-sub">LIB (Litio-Ion)</div>
+    </div>
+    <div class="agent-card" style="border-color:#8b5cf6;">
+      <div class="agent-name" style="color:#c4b5fd;">Agente 1</div>
+      <div class="agent-sub">VRB (Vanadio Redox)</div>
+    </div>
+    <div class="agent-card" style="border-color:#10b981;">
+      <div class="agent-name" style="color:#6ee7b7;">Agente 2</div>
+      <div class="agent-sub">SC (SuperCaps)</div>
+    </div>
+  </div>
+
+  <h3>Método select_actions()</h3>
+  <p>Recibe una lista de observaciones (una por agente) y devuelve
+     acciones continuas para el entorno:</p>
+  <pre><code><span class="kw">def</span> <span class="fn">select_actions</span>(<span class="kw">self</span>, obs_list: List[np.ndarray]) -> List[float]:
+    actions = []
+    <span class="kw">for</span> i, agent <span class="kw">in</span> <span class="fn">enumerate</span>(<span class="kw">self</span>.agents):
+        idx = agent.select_action(obs_list[i])           <span class="cmt"># ε-greedy → índice</span>
+        actions.append(_discrete_action_to_continuous(idx, <span class="kw">self</span>.n_actions))
+    <span class="kw">return</span> actions</code></pre>
+
+  <h3>Método push()</h3>
+  <p>Almacena la transición. Dado que el entorno opera con acciones
+     continuas, se recalcula el índice discreto más cercano antes de
+     guardar en el buffer:</p>
+  <pre><code><span class="kw">def</span> <span class="fn">push</span>(<span class="kw">self</span>, obs_list, actions_cont, rewards, next_obs_list, done):
+    <span class="kw">for</span> i, agent <span class="kw">in</span> <span class="fn">enumerate</span>(<span class="kw">self</span>.agents):
+        cont = actions_cont[i]
+        <span class="cmt"># invertir la fórmula de mapeo: idx = round((cont+1)/2 × (n-1))</span>
+        idx = int(<span class="fn">round</span>((cont + <span class="num">1.0</span>) / <span class="num">2.0</span> * (<span class="kw">self</span>.n_actions - <span class="num">1</span>)))
+        idx = <span class="fn">max</span>(<span class="num">0</span>, <span class="fn">min</span>(<span class="kw">self</span>.n_actions - <span class="num">1</span>, idx))
+        agent.push(obs_list[i], idx, rewards[i], next_obs_list[i], done)</code></pre>
+
+  <div class="callout info">
+    <div class="icon">ℹ️</div>
+    <div><strong>MADQN es "independiente"</strong>: cada agente toma decisiones sin
+    conocer las acciones de los otros. Esto es lo que diferencia a MADQN de
+    MADDPG, donde cada crítico sí tiene acceso a las acciones de todos los
+    agentes (<em>centralised training, decentralised execution</em>).</div>
+  </div>
+
+  <h3>Limitaciones de MADQN vs MADDPG (relevantes para el paper)</h3>
+  <table>
+    <tr><th>Aspecto</th><th>MADQN</th><th>MADDPG</th></tr>
+    <tr><td>Tipo de acción</td><td>Discreta (5 niveles)</td><td>Continua [−1,1]</td></tr>
+    <tr><td>Obs. del crítico</td><td>Solo propia</td><td>Global (todos los agentes)</td></tr>
+    <tr><td>Coordinación</td><td>Implícita (emergente)</td><td>Explícita (crítico centralizado)</td></tr>
+    <tr><td>Espacio modelado</td><td>Solo ESS (CS1)</td><td>ESS + MGA + xMGs (CS1 y CS2)</td></tr>
+    <tr><td>Convergencia</td><td>No garantizada en multi-agente</td><td>Más estable (CTDE)</td></tr>
+  </table>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════
+     7. COMPARATIVA
+═══════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="comparison">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(64,207,160,0.15);">📊</div>
+    7. Comparativa RBM vs MADQN vs MADDPG
+  </div>
+
+  <p>Los resultados del paper (Tabla 3) muestran cómo los algoritmos RL
+     superan al benchmark basado en reglas:</p>
+
+  <table>
+    <tr>
+      <th>Algoritmo</th>
+      <th>Tipo</th>
+      <th>Acciones</th>
+      <th>Ahorros anuales (CS1)</th>
+      <th>Fortaleza</th>
+    </tr>
+    <tr>
+      <td><span class="pill purple">RBM</span></td>
+      <td>Reglas fijas</td>
+      <td>Continuas (calculadas)</td>
+      <td>Bajo (no optimiza precio)</td>
+      <td>Determinista, sin training</td>
+    </tr>
+    <tr>
+      <td><span class="pill blue">MADQN</span></td>
+      <td>RL discreto</td>
+      <td>5 niveles discretos</td>
+      <td>Medio</td>
+      <td>Aprende dinámica de precios</td>
+    </tr>
+    <tr>
+      <td><span class="pill green">MADDPG</span></td>
+      <td>RL continuo multi-agente</td>
+      <td>Continuas [−1,1]</td>
+      <td>Alto</td>
+      <td>Coordinación centralizada en entrenamiento</td>
+    </tr>
+  </table>
+
+  <div class="callout tip">
+    <div class="icon">💡</div>
+    <div>El RBM sirve como "piso": si un algoritmo RL no supera al RBM,
+    su entrenamiento ha fallado. En nuestras pruebas, incluso con solo
+    5 episodios MADDPG ya supera al RBM en más de 100×.</div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════════════════
+     8. USO EN LA SIMULACIÓN
+═══════════════════════════════════════════════════════════════════════ -->
+<div class="section" id="usage">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(108,140,255,0.15);">🔌</div>
+    8. Cómo se usa en la simulación
+  </div>
+
+  <p>Los benchmarks son llamados desde <code>case_study_1.py</code>
+     cuando el parámetro <code>algo</code> es <code>"rbm"</code> o
+     <code>"madqn"</code>:</p>
+
+  <pre><code><span class="cmt"># En case_study_1.py:</span>
+<span class="kw">from</span> .benchmarks <span class="kw">import</span> RBMAgent, MADQNSystem
+
+<span class="kw">if</span> algo == <span class="str">"rbm"</span>:
+    system = RBMAgent()
+    <span class="cmt"># En cada paso: actions = system.select_actions(demand, pv, wt, charges)</span>
+
+<span class="kw">elif</span> algo == <span class="str">"madqn"</span>:
+    system = MADQNSystem(obs_dim=obs_space.shape[<span class="num">0</span>], n_agents=<span class="num">3</span>)
+    <span class="cmt"># En cada paso: actions = system.select_actions(obs_list)</span>
+    <span class="cmt"># Tras cada paso: system.push(...) ; system.update()</span></code></pre>
+
+  <p>Desde la CLI o el notebook:</p>
+  <pre><code><span class="cmt"># Terminal</span>
+python run_simulation.py --algo rbm   --case 1 --episodes 200
+python run_simulation.py --algo madqn --case 1 --episodes 200
+
+<span class="cmt"># Comparación completa (Tabla 3 del paper)</span>
+python run_simulation.py --compare --case 1 --episodes 200</code></pre>
+
+  <div class="callout warn">
+    <div class="icon">⚠️</div>
+    <div><strong>Case Study 2 no usa benchmarks:</strong> El RBM y MADQN no están
+    implementados para CS2 (HESS + MGA + 5 xMGs), ya que el paper tampoco los
+    evalúa en ese escenario. Solo DDPG/D3PG/TD3/MADDPG/MAD3PG/MATD3
+    soportan el caso de 9 agentes con la subasta de energía.</div>
+  </div>
+</div>
+
+<!-- footer -->
+<div style="text-align:center; color:var(--text-muted); font-size:0.8rem; padding:40px 20px 60px;">
+  Generado para el proyecto de simulación MADDPG Microgrid &nbsp;·&nbsp;
+  <code>articles/renew/simulacion/benchmarks.py</code>
+</div>
+
+</div><!-- /container -->
+</body>
+</html>

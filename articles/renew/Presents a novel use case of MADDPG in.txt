@@ -1,0 +1,1261 @@
+Presents a novel use case of MADDPG in a mixed cooperative
+and competitive MAS microgrid scenario for both RES integration
+and energy arbitrage. The centralised learning and decentralised
+execution of the method allows each agent is able to evaluate
+their policy by observing the actions of all other agents without
+having to share parameters or critic networks. This is ideal for the
+HESS working cooperatively as well as for self-interested agents
+looking to do the same for external microgrids.
+• Considers both energy arbitrage and RES integration in a single
+problem within the MAS. An asymmetric wholesale energy mar-
+ket real-time pricing scheme means that the agents must respond
+to both the fluctuating prices and RES output to optimally reduce
+the microgrid’s energy bills.
+• Evaluates the use of a single-agent global controller versus mul-
+tiple distributed agents for the control of different components
+of the microgrid. The individual reward function that each agent
+receives from the individual critic networks under MADDPG uses
+the concept of marginal contribution to better assess how the
+agents’ actions impacted the joint goal of reducing energy costs.
+This also allows each agent in the HESS to develop their own
+unique policy to best suit that ESS type
+
+2.1. Energy network description
+
+
+The primary microgrid is fitted with a HESS as well as both PV and
+WT generation. It is connected to the main utility grid that sets dynamic
+energy prices from which the microgrid can import energy from, or sell
+back to at a fixed feed-in tariff. AC and DC power lines are present
+connected via inverters, as well as transformers between the primary
+microgrid and both the utility grid and WT. In addition, the primary
+microgrid is also connected to five xMGs via another transformer, with
+those xMGs are connected themselves to the main utility grid but not
+the wholesale energy market. The basic schematic of the environment
+is shown in Fig. 1.
+
+
+2.1.1. ESS
+The primary microgrid consists of a HESS with three different types
+of ESS: a LIB, a VRB, and a SC which are suited for mid-term, long-
+term, and short-term energy storage respectively. All three have the
+same maximum capacity and maximum power, shown in Fig. 1, and
+can transfer energy between each other without the need to go through
+an inverter. Some general observations of each are:
+• LIB is cheapest per capacity with a low self-discharge and a good
+round-trip efficiency but has the fewest total lifecycles making it
+ideal for medium-term storage.
+• VRB has a negligible self-discharge but a poor round-trip ef-
+ficiency making it suited for storing energy over much longer
+periods of time.
+• SC has a much largest number lifecycles making it by far the
+cheapest to operate, but a poor self-discharge makes it only ideal
+for dealing with fluctuations over the course of a single day.
+
+The control policy that the agent must learn should optimally
+manage the contrasting characteristics of the ESS types to maximise
+each of their strengths and mitigate against their respective flaws.
+2.1.2. Demand and renewable energy sources
+The demand data collected at Keele University Campus ranges from
+00:00 January 1st 2014 up to and including 23:00 December 31st
+2017. The raw data is separated into different residential, industrial,
+and commercial sites as well as readings for key individual buildings.
+The demand used for this simulation is from the three main incomer
+substations into the campus with the half-hourly readings summed to
+match the frequency of the hourly weather data.
+This microgrid considers both PV and WT generation with the
+output simulated using weather data collected at the Keele University
+weather station, and therefore at the same site as the demand data and
+over the same period of time.
+The grid components are also connected using inverters between
+Ac and DC lines, as well as transformers to step-up or step-down
+voltages. Transformers connect the primary microgrid to the utility
+grid, the WT, and external microgrids (xMG) in the second case study.
+Inverters connect the main AC line of the microgrid to the HESS and
+PV generation which all use DC. All loads are AC.
+
+2.1.3. Wholesale energy pricing
+The microgrid is connected to the main utility grid, but can also pur-
+chase energy from a wholesale energy market under a dynamic pricing
+scheme. Here, the microgrid can purchase using real-time pricing set
+by the market operator, but can only sell back to the utility grid at a
+constant feed-in tariff.
+By reacting to the uneven dynamic pricing scheme with higher
+buying prices than selling prices, learning to both buy energy when
+the wholesale price is low as well as maximising the utilisation of the
+RES will be key to the agents’ performance. Therefore, rewarding the
+agents based on their energy savings encourages both effective energy
+arbitrage and RES integration.
+
+2.1.4. External microgrid trading
+In a second case study, the microgrid aggregator (MGA) agent sells
+energy to five smaller xMGs. The MGA decides the amount of energy
+to sell at the next hour to the xMGs which then enter a bidding phase
+to compete for the energy.
+The xMGs bid for a quantity of energy at a price they are willing to
+pay. The MGA then sells the energy to whichever xMGs bid the highest
+until there is none left to sell. The MGA can also set a reserve price
+which must be met to sell the energy, otherwise it is sent back to the
+utility grid.
+
+2.2. Control methodology
+Model predictive control had historically been the most widely used
+method for a control system, and is very popular within the energy
+industry [11]. Model-based methods such as this will often achieve
+great results if an accurate model and data are provided, but the results
+are only as accurate as the model itself and the data needed to create
+a model is not necessarily always available. In contrast, RL is a rapidly
+expanding research area and most methods are model-free so do not
+require a model of the environment, or any information about the
+environment at all, so are much more flexible in nature. Therefore, this
+paper focuses on the use of RL.
+A fundamental challenge for this specific scenario is sample effi-
+ciency as there is only one set of data so the agents will only receive
+one pass through the environment. Therefore, RL algorithms known for
+their sample efficiency are required to achieve superior energy savings.
+
+3. Reinforcement learning methodology
+This section will explore the theory behind RL and introduce the
+specific algorithms used in the case studies later in the paper.
+
+
+3.1. Fundamentals
+
+Each time-step 𝑡 in RL, the agent observes the current state of the
+environment 𝑠𝑡 and selects an action 𝑎𝑡 from an action-space following
+a learnt policy. The agent then receives a reward 𝑟𝑡 from a reward
+function and transitions to a new state 𝑠𝑡+1 with the goal of the agent
+being to learn a policy that maximises its total discounted future
+reward.
+RL algorithms can be categorised as value function methods, policy
+gradient methods, or actor–critic methods. Value function methods
+evaluate performance by assigning value to each state by estimating
+the state-value 𝑉 (𝑠) or state–action pair by estimating the action-value
+𝑄(𝑠, 𝑎). Policy gradient methods instead directly parameterise the policy
+using an ANN without necessarily estimating a value function. The
+parameters 𝜃 are adjusted to maximise an objective 𝐽 (𝜃) by follow-
+ing the gradient of the policy ∇𝜃 𝐽 (𝜃). Actor–critic methods will both
+learn a value function and parameterise the policy, combining both
+approaches.
+
+3.2. Algorithms
+The algorithms used in this paper are Deep Deterministic Policy Gra-
+dient (DDPG) and two more advanced variants of DDPG, benchmarked
+against a popular value function method.
+3.2.1. Deep Deterministic Policy Gradient (DDPG)
+DDPG [27] is an actor–critic method based on the principles of Q-
+learning [28] in which an actor network 𝜇𝜙 (𝑠) with network weights 𝜙
+selects the actions the agent takes while a critic network 𝑄𝜃 (𝑠, 𝑎) with
+weights 𝜃 evaluates agent performance.
+Action selection is performed by passing the current state through
+the actor network. As the policy is deterministic, the agent explores by
+adding a noise process 𝑤 to the actor output:
+𝑎𝑡 = 𝜇𝜙 (𝑠𝑡 ) + 𝑤
+
+This noise 𝑤 is typically either Gaussian for uncorrelated noise or
+the Ornstein–Uhlenbeck process for correlated noise. An alternative
+method is to instead use adaptive parameter space noise which can be
+tuned during training [29]. NoisyNet layers [30] have been used with
+Deep Q-Networks (DQN) [31] to introduce noise to the value function
+estimation which the agent can learn to increase or decrease as it visits
+those states. The same approach is used in this work, and the noise
+process for the action selection has been removed.
+Once the environment has executed the action, the agent stores
+the transition tuple ⟨𝑠𝑡 , 𝑎𝑡 , 𝑟𝑡 , 𝑠𝑡+1 , 𝑑𝑡 ⟩ in an experience replay buffer
+memory, which can then be sampled later during training. This makes
+he algorithm an off-policy method as the agent is trained from samples
+collected using a different policy to the current learnt one. The use of a
+replay buffer allows DDPG to be more sample efficient than on-policy
+RL algorithms such as A3C [32] and PPO [33]. This is particularly
+useful for this environment as the agents only perform one sweep of
+the 4 years of data as one episode, so the ability to learn by sampling
+previous transitions from limited data is crucial.
+Target actor 𝜇̂ 𝜙̂ and target critic 𝑄̂ 𝜃̂ networks are also used to
+stabilise learning, with weights that are fixed during training and then
+updated at the end of each step. This is so that the agent is not cal-
+culating the target value using the same network that is being trained,
+which is done to avoid oscillations or divergence in the policy [31].
+The critic and target critic networks evaluate performance by ob-
+serving both the state and the corresponding action. Following the
+principles of temporal difference learning [8], target values 𝑦 are
+estimated from the target critic estimations of the sampled batch of
+tuples:
+𝑦𝑖 = 𝑟𝑖 + 𝛾 𝑄̂ 𝜃̂ 𝑠𝑖+1 , 𝜇̂ 𝜙̂ (𝑠𝑖+1 ))
+
+The critic network is updated through gradient descent using the
+mean-squared error between 𝑦 and the predicted value from the critic
+network:
+𝑖 (𝜃) = E (𝑦𝑖 − 𝑄𝜃 (𝑠𝑖 , 𝑎𝑖 ))2
+
+The actor network is then updated through gradient ascent using
+the deterministic policy gradient [34]:
+
+∇𝜙 𝐽𝑖 (𝜙) = E ∇𝑎 𝑄𝜃 (𝑠𝑖 , 𝑎)|𝑎=𝜇(𝑠) ∇𝜙 𝜇𝜙 (𝑠𝑖 )
+
+At the end of each step, soft target updates are performed for the
+target actor and critic using a smoothing parameter 𝜏:
+𝜃̂ ← 𝜏𝜃 + (1 − 𝜏)𝜃̂
+̂
+𝜙 ← 𝜏𝜙 + (1 − 𝜏)𝜙̂
+
+The pseudocode of DDPG can be found in Algorithm 1. The learn-
+ing process during training between the different ANNs for DDPG is
+visualised as a flowchart in Fig. 2(a).
+3.2.2. Distributional DDPG (D3PG)
+An issue with using the expectation value for 𝑄(𝑠, 𝑎) is that it
+can over-generalise in environments with a non-deterministic reward
+function [35]. D3PG [36] removes the expectation step in the Bellman
+equation and instead estimates the value distribution 𝑍(𝑠, 𝑎):
+
+
+𝑍(𝑠𝑡 , 𝑎𝑡 ) = (𝑠𝑡 , 𝑎𝑡 ) + 𝛾𝑍(𝑠𝑡+1 , 𝑎𝑡+1 )
+
+A number of atoms are assigned to each action for 𝑁actions × 𝑁atoms
+output neurons with the probability distribution of the return 𝑑(𝑠, 𝑎)
+calculated using a softmax applied separately across the atoms for each
+action. The algorithm C51 [35], the distributional variant of DQN, uses
+51 atoms across each action. The probability mass on each atom is
+equal to:
+exp(𝜃𝑖 (𝑠, 𝑎))
+𝑑𝑖 (𝑠, 𝑎) = ∑
+𝑗 exp(𝜃𝑗 (𝑠, 𝑎))
+
+
+Each of these probability masses can then be projected onto a
+support 𝑧 with a value equally spaced between a minimum return 𝑣min
+and a maximum return 𝑣max :
+𝑣
+− 𝑣min
+𝑧𝑖 = 𝑣min + (𝑖 − 1) max
+(8)
+𝑁atoms − 1
+
+
+The sum of these probability masses on each support is equal to
+𝑄(𝑠, 𝑎). The target used for training is the projected target distribution
+calculated using the categorical algorithm [35]:
+[
+]1
+𝑣
+𝑁atoms
+∑
+|[̂ 𝑧𝑗 ]𝑣max
+− 𝑧𝑖 |
+min
+(𝛷̂ 𝑍𝜃̂ (𝑠, 𝑎))𝑖 =
+1−
+𝑑̂𝑗 (𝑠𝑖+1 , 𝑎∗ )
+
+where 𝛷 is the projection of the distribution onto 𝑧 and  is the
+distributional Bellman operator. As this generates a discrete probability
+distribution, the Kullback–Leibler divergence between the predicted
+value and the projected target is used for the loss function:
+(
+)
+𝑖 (𝜃) = 𝐷KL 𝛷̂ 𝑍𝜃̂ (𝑠𝑖 , 𝑎𝑖 ) ∥ 𝑍𝜃 (𝑠𝑖 , 𝑎𝑖 )
+
+
+3.2.3. Twin Delayed DDPG (TD3)
+A common issue with using functional approximators in RL is they
+have a tendency to overestimate value estimates which can lead to suboptimal policies as agents tend to select the actions that they have
+already assumed are more valuable [37]. Double DQN [38] looked
+to solve this by removing the maximisation step in the DQN target
+calculation and selecting the next state’s best action using the evalu-
+ation network, but this does not work for actor–critic methods such as
+DDPG as the action selection and value function estimates are separate.
+Instead, Double Q-Learning [39] uses two value function estimates
+so that the next best action and target estimate is performed using
+different value estimates.
+TD3 [40] aims to solve the overestimation problem for DDPG by
+using a similar approach with a second critic and target critic pair. The
+target value 𝑦𝑖 is then calculated using the minimum estimated of the
+two critic target networks:
+
+𝑦𝑖 = 𝑟𝑖 + 𝛾 min 𝑄̂ 𝜃̂ (𝑠𝑖+1 , 𝜇̂ 𝜙̂ (𝑠𝑖+1 ))
+
+
+That shared target value 𝑦 is then used for the loss function of both
+critic networks:
+[
+]
+𝑖 (𝜃1 ) = E (𝑦𝑖 − 𝑄𝜃1 (𝑠𝑖 , 𝑎𝑖 ))2
+(12)
+[
+]
+𝑖 (𝜃2 ) = E (𝑦𝑖 − 𝑄𝜃2 (𝑠𝑖 , 𝑎𝑖 ))2
+
+
+In contrast to DDPG where both the actor and critic are updated
+every step, the actor and target networks are updated at a lower
+frequency to the critic to minimise the error in the policy update.
+The actor update uses the deterministic policy gradient of only one of
+critics:
+[
+]
+∇𝜙 𝐽𝑖 (𝜙) = E ∇𝑎 𝑄𝜃1 (𝑠𝑖 , 𝑎)|𝑎=𝜇(𝑠) ∇𝜙 𝜇𝜙 (𝑠𝑖 )
+
+
+The learning process of TD3 is visualised as a flowchart in Fig. 2(b).
+
+3.3. Multi-Agent DDPG (MADDPG)
+
+
+n theory, using a single-agent RL for a MAS is possible as the state
+observations, actions, and reward function can all remain the same.
+However, there are a number of fundamental challenges that appear
+when applying standard single-agent RL algorithms in a MAS.
+The main problem is that the environment appears non-stationary
+from the perspective of a single agent as the behaviours of other agents
+will change during training [41]. This means that an agent may observe
+exactly the same state as before and perform exactly the same action
+but receive a completely different reward based on the actions of other
+agents, which can make learning incredibly difficult. For example,
+agents in a competitive setting may over-fit their policy based on the
+behaviours of other agents, whereas agents in a collaborative setting
+may suffer from credit assignment problems from a shared reward
+function.
+MADDPG [42] looks to solve this by using the principle of cen-
+tralised learning with decentralised execution. Each agent selects its
+own action based on its own observations during the execution phase,
+but the architecture of the DDPG critic allows each agent to evaluate
+performance by observing the actions taken by all other agents, thus
+solving the problem where agents may perceive the environment as
+non-stationary.
+As each of the agents possesses its own critic network, they can
+evaluate their own performance using their own reward function. This
+means that MADDPG can be used in competitive, collaborative, and
+mixed settings while remaining fundamentally very similar to DDPG
+itself.
+MADDPG has the benefit of other multi-agent RL algorithms in that
+it uses a critic network for each agent, rather than having a shared
+critic as in QMIX [43] or COMA [44] which are only suited for a
+cooperative MAS. MADDPG allows each agent to learn its own reward
+function so is much better suited for competitive or mixed cooperative
+and cooperative environments
+
+
+
+3.4. Environment formulation
+For RL to operate the microgrid environment, the control process
+must be generalised to a state-space , action-space , reward function
+, and a state transition function. The rest of this section will explain
+the states, actions, and rewards for the case studies.
+3.4.1. States
+The state observations 𝑠𝑡 are the values the agents see when select-
+ing actions. The ESS agents observe the charge of all of the ESSs, the
+grid demand, wholesale energy price, WT and PV generation, as well
+as the current hour in the day and the week. The agents also receive
+D
+grid
+predicted values of the next step for demand Ẋ 𝑡+1 , market price Ṗ 𝑡+1 ,
+PV
+WT
+and PV Ẋ , and WT Ẋ
+from ANNs using regression with weather
+𝑡+1
+(11)
+𝑡+1
+data, as in previous work [45]. In the second case study, the MGA
+agent receives the same observations as the ESS agents but also includes
+observations of the MGA sell volume and reserve price for that step:
+
+ESS
+= [𝑐𝑡LIB , 𝑐𝑡SC , 𝑐𝑡VRB , P𝑡
+𝑡
+D
+grid
+, Ṗ 𝑡+1 , PMGA
+, XMGA
+,
+𝑡
+𝑡
+PV
+WT
+day
+PV ̇
+WT ̇
+̇
+XD
+𝑡 , X𝑡+1 , X𝑡 , X𝑡+1 , X𝑡 , X𝑡+1 , H𝑡
+, Hweek
+]
+𝑡
+(14)
+In contrast, the xMG agents only receive the demand for that specific
+xMG, the MGA sell volume and reserve price, as well as the same hour
+information as before:
+
+
+𝑠xMG
+= [PMGA
+, XMGA
+, XxMG,D
+, H𝑡
+𝑡
+𝑡
+𝑡
+𝑡
+, Hweek
+]
+𝑡
+(15)
+This means that aspects of the underlying state of the environment
+are hidden from different agents, in the interests of privacy and compe-
+tition. All observation values are also scaled between 0 and 1 for stable
+agent training.
+
+
+3.4.2. Actions
+The actions of the agents control the environment at each step.
+DDPG and its variants output an action 𝑎 value between −1 and 1, and
+then that value is used to control the environment.
+The ESS agents control how much that ESS charges or discharges. If
+using a single-agent approach, one agent will output three actions (or
+five including the MGA) to charge all three ESSs, whereas each agent
+will be in control of one ESS in a multi-agent approach:
+[ ESS ]1
+𝑥ESS
+= XESS
+(16)
+𝑡
+max 𝑎𝑡
+−1
+
+
+The MGA agent selects two actions. The first selects the primary
+microgrid’s selling volume at the next step, between 0 and a maximum
+volume XMGA
+max :
+[
+]1
+MGA,X
+MGA
+XMGA
++ 0.5XMGA
+(17)
+max
+𝑡+1 = 0.5Xmax 𝑎𝑡
+−1
+The second decides the reserve price of the energy sold, between
+Pmin = £16∕MWh and Pmax = £144∕MWh:
+(
+) [ MGA,P ]1
+PMGA
+𝑎𝑡
+𝑡+1 = 0.5 Pmax − Pmin
+−1
+(18)
+(
+)
++ 0.5 Pmax + Pmin
+The xMGs also select two actions. The first is the bid volume,
+between 0 and a maximum volume XxMG
+max :
+[
+]1
+xMG,X
+𝑥xMG
+= 0.5XxMG
++ 0.5XxMG
+(19)
+𝑡
+max 𝑎𝑡
+max
+−1
+The second is the bid price, also between Pmin and Pmax :
+]1
+(
+)[
+𝑝xMG
+= 0.5 Pmax − Pmin 𝑎xMG,P
+𝑡
+𝑡
+−1
+(20)
++ 0.5(Pmax + Pmin )
+In the second case study, the MGA decides the sell volume of energy
+and the reserve price for the xMG at the next step. These values are then
+observed by all agents at the next step. In this case, the global controller
+will output five actions instead of three, whereas the individual MGA
+
+agent will operate as its own entity outputting two actions in the multi-
+agent setting. Each xMG agents decide two actions: the buying volume
+of energy and the bid price of the current step.
+For DDPG, the primary algorithm used in this paper, the actions are
+selected using an actor network for each agent which observes only
+the relevant state observations for that particular agent. However, the
+agents’ performance is evaluated using a critic network for each agent
+which receives those same observations as well as the actions taken by
+all agents.
+
+3.4.3. Rewards
+The aim of the agents is to reduce the energy costs of their respective
+microgrid. For the primary microgrid, this is done by calculating the
+energy imported to or exported from the grid. First, the net demand of
+the DC line Xdc is considered:
+PV
+LIB LIB
+VRB VRB
+SC
+Xdc
+𝜂RTE + 𝑥SC
+𝑡 = 𝑥𝑡 𝜂RTE + 𝑥𝑡
+𝑡 𝜂RTE − X𝑡
+
+
+This is then used to calculate the amount of energy imported from
+or exported to the utility grid:
+D
+dc inv
+WT tra
+tra
+Xin
+𝑡 = (X𝑡 + X𝑡 𝜂[1,2,5]MW − X𝑡 𝜂2MW )𝜂2MW
+4.1. Environment parameters
+This section will cover the technical characteristics and dynamics of
+the RL environment.
+(22)
+The reward for the cost of the energy the primary microgrid has
+bought or sold to the utility grid can then be calculated:
+grid
+in
+𝑅in
+𝑡 = −X𝑡 P𝑡
+
+
+
+The ESS agents are punished to promote positive behaviour, such as
+by including the ESS operation cost 𝑅CPC calculated earlier in Eq. (29).
+The agent is punished again if the action selected would make the
+theoretical ESS charge 𝑐̇ after the action is executed exceed the capacity
+boundaries of the ESS:
+⎧Pmax (𝑐̇ 𝑡 )2 ∕Xmax𝑐̇ 𝑡 < 0
+⎪
+2
+⎩Pmax (𝑐̇ 𝑡 − Cmax ) ∕Xmax𝑐̇ 𝑡 > Cmax
+⎪
+cap
+𝑅𝑡 = ⎨0
+0 ≤ 𝑐̇ 𝑡 ≤ Cmax
+(24)
+The agents are also punished based on the amount of energy lost
+each step through self-discharge:
+)
+(
+𝑐𝑡
+𝑅SDC
+=
+P
+𝜂SDC
+(25)
+max
+𝑡
+Cmax
+
+
+Including the ESS operation cost 𝑅CPC from Eq. (29) and the reward
+for the MGA bidding 𝑅MGA from Algorithm 2, the sum of the reward
+terms 𝑅sum is calculated as:
+𝑅sum = 𝑅in + 𝑅MGA − 𝑅CPC − 𝑅SDC − 𝑅cap − 𝑅base
+
+
+This value is then multiplied by 0.01 and the total number of agents
+𝑁agents so that the reward the agent receives typically remains between
+−1 and 1, or at least at that magnitude, to improve the stability of agent
+learning. Therefore, the reward 𝑟𝑡 an agent receives at each step is equal
+to:
+𝑟𝑡 = 0.01𝑁agents 𝑅sum
+
+Using the raw energy cost as the reward will punish the agent when
+the demand is high and reward the agent when RES generation is
+high, neither of which the agent has any control over. Therefore, a
+baseline 𝑅base is used to normalise the reward for effective learning.
+The single-agent algorithms have control over the whole environment
+so are rewarded on the primary microgrid’s energy savings with a 𝑅base
+of if all of the ESS and MGA had remained idle by recalculating what
+the reward would be if 𝑥LIB , 𝑥LIB , 𝑥LIB , and XMGA were all 0.
+However, the multi-agent methods can be more flexible with reward
+function design. For example, each agent could be rewarded on the
+entire primary microgrid’s savings as this is the common goal the agents
+are working towards but this could lead to credit assignment problems
+as the agents will need to assess how much of the shared reward they
+contributed to. Alternatively, they could be rewarded based on their
+
+own individual savings, but that then ignores the policies of the other
+ESSs and may lead to a lower global reward.
+Therefore, both approaches can be combined by rewarding the
+agent on the grid’s savings but by using a baseline of if that one indi-
+vidual agent had remained idle, rather than if all of them together were
+idle. This follows the principle of marginal contribution in cooperative
+game theory where agents are rewarded based on their contribution to
+the global goal [46].
+4. Case studies
+
+In the first case study, only the ESS agents are used and their actions
+control how much each ESS charges or discharges by. In the second, the
+MGA agent determines the selling volume and reserve price for the next
+step which all agents observe before the xMG agents place their bids
+for the amount and price.
+
+4.1. Environment parameters
+This section will cover the technical characteristics and dynamics of
+the RL environment.
+
+
+4.1.1. ESS properties
+The parameters used for the modelling of each ESS type are given in
+Table 1 with their maximum capacity Cmax , maximum power Xmax , self-
+discharge efficiency (SDC) per hour 𝜂SDC , round-trip efficiency (RTE)
+𝜂RTE , capacity cost per kWh, number of lifecycles, and capacity cost
+per cycle PCPC .
+The charge of each ESS is bound between 0 and their maximum
+capacity Cmax = 2MWh, with the power 𝑥𝑡 the ESS can charge or
+discharge each step bound between 0 and their maximum power Xmax =
+1 MW. The charge of each ESS 𝑐𝑡 each step is calculated by:
+√
+(28)
+𝑐𝑡 = 𝑥𝑡 𝜂RTE + 𝑐𝑡−1 𝜂SDC
+
+The operation CPC of each ESS is also considered so that the agents
+optimally use the different types. This is calculated using their capacity,
+capacity cost, and number of lifecycles which is then used as a function
+in the reward 𝑅CPC :
+(
+)
+𝑐𝑡 − 𝑐𝑡−1 2
+(29)
+𝑅CPC
+= 0.5PCPC
+𝑡
+Cmax
+
+A cycle is considered as the battery charging from empty to full and
+then discharging until empty, or vice versa. Therefore, PCPC is halved
+as each step is only considered as a half cycle because the ESS cannot
+both charge and discharge in the same step.
+
+4.1.2. RES output
+The output for the RES generation is modelled using weather data
+collected at the Keele University weather station. The PV output XPV is
+calculated using hourly solar radiation data and scaled to model a solar
+farm with a maximum capacity of 5MW, while the WT output XWT is
+calculated using wind power curve modelling using wind speed data,
+with wind speed 𝑣:
+
+⎧0
+⎪
+XWT = ⎨ 1 𝜌𝜋𝑟2 𝑐𝑝 𝑣3
+2
+⎪ WT
+⎩Xrated
+𝑣 < 𝑣ci or 𝑣 > 𝑣co
+𝑣ci ⩽ 𝑣 < 𝑣𝑟
+(30)
+𝑣𝑟 ⩽ 𝑣 ⩽ 𝑣co
+
+
+
+The values used are 𝑣𝑐𝑖 = 3 ms−1 , 𝑣𝑟 = 12 ms−1 , and 𝑣𝑐𝑜 = 25 ms−1
+are the cut-in, rated, and cut-out wind speeds respectively which are
+comparable to a 1MW-rated turbine with a blade radius of 𝑟 = 30 m
+and a power coefficient 𝑐𝑝 = 0.4 [47]. This microgrid considers two of
+these turbines for a combined maximum wind capacity of 2 MW. The
+same power curve approach is used by both Kuznetsova et al. [13] and
+Zhang et al. [16] for their RES output.
+
+
+
+4.1.3. Transformer and inverter properties
+The primary microgrid is a hybrid AC/DC network with inverters
+between the two power lines and transformers to step-up and step-down
+the voltage to the microgrid. The rated loads of each of the transformers
+and inverters can be found in Fig. 1.
+The HESS and PV generation are connected to 1MW, 2MW, and
+5MW rated inverters as well as to each other. When energy is to pass
+between the AC and DC lines, the grid will automatically use whichever
+inverter or combination of inverters that would result in the lowest
+power loss. Mbuwir et al. [21] used a similar efficiency profile for
+inverters [48] for RL in a microgrid with solar energy.
+The efficiency profiles modelled using a polynomial estimation,
+shown in Fig. 3. The efficiency profiles are nonlinear and given as a
+function of the load factor, which is given as the current load divided
+by the rated load. Although the real efficiency of these devices at low
+load factor would approach 0%, the minimum efficiency is capped at
+10% to prevent divisions by 0 during environment calculations.
+
+4.1.4. Wholesale energy market
+The microgrid operates under a dynamic energy pricing scheme
+where the prices Pgrid are set by a real-time energy trading market
+covering the UK [49]. However, there is also a set maximum price
+Pmax = £144/MWh as this is the average unit rate for electricity for
+the UK [50] so will instead buy from the utility grid at that flat price
+if the market price exceeds this.
+However, this market is only for purchasing energy so the microgrid
+can also sell energy back to the utility grid at a fixed feed-in tariff. The
+feed-in tariff in the UK varies greatly based on the type of energy, the
+size of the system, and the installation date [51]. Therefore, a fixed rate
+of Pmin = £16/MWh is assumed for all energy sold back to the grid.
+This is equal to the tariff for a WT system selling between 0.1 MW and
+1.5 MW installed after 1st January 2019, and is also extremely similar
+to the £15.9/MWh feed-in tariff of a 0.25 MW and 1 MW PV system
+installed at the same time [52].
+
+
+able 1
+ESS Properties.
+ESSCapacity CmaxPower Xmax𝜂SDC𝜂RTECapacity CostLifecyclesPCPC
+LIB
+VRB
+SC2MWh
+2MWh
+2MWh1MW
+1MW
+1MW99.99%
+100%
+99%95%
+80%
+95%£100/kWh
+£200/kWh
+£300/kWh5k
+10k
+100k£40
+£40
+£6
+
+
+4.2. MGA properties
+The MGA selects the total volume the grid will sell XMGA for the
+xMGs to bid for. The MGA also selects a reserve price PMGA between
+Pmin and Pmax which needs to be met in order to sell so that the MGA
+has some control over the xMG market.
+During the bidding phase of each step, the aggregator will sell as
+much available energy as available to the highest xMG bidder up to
+the volume it has requested, assuming the xMG bid price exceeds the
+MGA reserve price. The MGA will then move to the next highest bidder
+until all available energy for selling has gone, with any excess energy
+put up for auction but not sold given back to the utility grid at Pmin .
+This is written in pseudocode in Algorithm 2.
+
+Algorithm 2 MGA and xMG Bidding Step
+1: Input MGA selling volume XMGA
+2: Input MGA reserve price PMGA
+3: Input xMG bidding volumes
+[
+]
+𝑥xMG = 𝑥xMG1 , 𝑥xMG2 , 𝑥xMG3 , 𝑥xMG4 , 𝑥xMG5
+4: Input xMG bidding prices
+[
+]
+𝑝xMG = 𝑝xMG1 , 𝑝xMG2 , 𝑝xMG3 , 𝑝xMG4 , 𝑝xMG5
+5: Initialise reward 𝑅MGA = 0
+6: while XMGA > 0 and 𝑥xMG
+any > 0 do
+Highest bidding xMG index 𝑖 = argmax 𝑝xMG
+if 𝑝xMG
+> PMGA then
+𝑖
+9:
+Available bid volume 𝑥bid = min[XMGA , 𝑥xMG
+]
+𝑖
+bid
+10:
+Update reward 𝑅MGA ← 𝑅MGA + 0.8𝑝xMG
+𝑥
+𝑖
+11:
+Update selling volume XMGA ← XMGA − 𝑥bid
+12:
+end if
+13:
+Set 𝑥xMG
+←0
+𝑖
+14:
+Set 𝑝xMG
+←0
+𝑖
+15: end while
+16: Sell remainder 𝑅MGA ← 𝑅MGA + Pmin XMGA
+
+4.2.1. xMG properties
+Each xMG must satisfy its own demand XxMG, D and can do so
+by trading with the MGA or by importing from the utility grid. The
+demand is one-twentieth of the scale of the primary microgrid’s demand
+XxMG,D plus a small noise function:
+[
+]0.25XD𝑡
+D
+XxMG,
+= 0.05XD
+𝑡
+𝑡 +  (0, 0.01)
+
+The xMG bids for a volume of energy 𝑥xMG at a price 𝑝xMG between
+Pmin and Pmax . Any demand that is not met by the volume it receives
+from the MGA is made up by buying from the utility grid at Pmax . Any
+energy bought over the xMG demand is given back to the utility grid
+at Pmin .
+4.3. Simulation setup
+Each time-step in the environment represents one real-world hour
+and each episode represents 168 h or one week. The entire simulation
+takes place over 200 weeks for 33.6k total time-steps, significantly
+fewer samples than used for typical RL agent training in the order
+of millions of time-steps. Therefore, sample efficiency is key to agent
+performance.
+
+
+able 2
+DDPG agent hyperparameters.
+HyperparameterValue
+Actor Learning Rate
+Critic Learning Rate
+Hidden Layer Dimensions
+Hidden Layer Activation
+Batch Size
+Target Update 𝜏
+Discount Factor 𝛾
+D3PG Limits 𝑉min , 𝑉max
+TD3 Actor Delay Steps5 × 10−4
+1 × 10−3
+256
+ReLu
+64
+0.005
+0.99
+−10, 10
+2
+
+
+The agent begins learning after 500 steps to build up the replay
+buffer and takes uniformly random actions until 1000 steps so that the
+initial transitions are not biased by the randomly initialised weights of
+the actor network. The agent then trains across all 200 weeks with the
+first 100 used for hyperparameter testing and the second 100 weeks for
+evaluation.
+The hyperparameter testing was performed using a grid search of
+values for the DDPG algorithm with. The parameters tested were the
+actor and critic learning rates, the discount factor 𝛾, the hidden layer
+dimensions, the learning sample batch size, and the target network
+update 𝜏. During this testing, the grid savings are reset after 1000 steps
+due to the random action selection and then the value that produced the
+greatest savings after the 100 episodes is carried forward for the grid
+search of the next hyperparameter. The final values used for evaluation
+shown in Table 2 with those parameter values used across all DDPG
+variants.
+For the evaluation phase, the agent is trained across all 200 episodes
+with the savings reset after the first 100. The TensorFlow and NumPy
+random seeds are kept constant across all simulations for fairness and
+repeatability, so every agent takes the same random actions in the first
+1000 steps.
+Forecasted values are predicted using regression ANNs for the de-
+mand, price, and RES generation. In previous work [45], this was
+found to significantly boost agent performance in a similar environment
+performing energy arbitrage. These forecasts are then provided to the
+agents as state observations.
+At each time step, the environment and forecast ANNs provide the
+agents with observations, and then they all select an action at the same
+time. The environment executes all actions at once, then providing
+the agents with their rewards and transitioning to the next state. The
+control process at each step is found in Fig. 4.
+
+4.4. Benchmarks
+
+Three benchmarks are used for evaluation in the HESS case study:
+two alternative multi-agent RL algorithms and a model-based approach.
+Deterministic optimisation methods such as linear programming cannot
+be used in this environment as the energy price is dependant on
+whether the agent is buying or selling, as well as the demand and RES.
+This makes the problem nonlinear and there are no effective methods
+of solving nonlinear programming problems [53].
+No model-based benchmark methods are used for the xMG case
+study due to the competition between the MGA and the xMG agents.
+The two alternative multi-agent RL algorithms also can only use dis-
+crete action-spaces which give the continuous control of DDPG a
+tremendous advantage in this particular bidding setting. Therefore, the
+DDPG algorithms will be benchmarked against each other in the second
+case study.
+4.4.1. Multi-Agent Deep Q-Networks (MADQN)
+DQN [31] uses an ANN to evaluate the action values of different
+actions, similar to the critic network in DDPG. However, rather than
+using an actor network for action selection, the agent will always the
+select the most valuable action at each step unless told otherwise. This
+makes DQN more robust than actor–critic methods such as DDPG as
+the algorithms are less sensitive to hyperparameter tuning [8], but the
+agent can only select from a discrete action-space. Also, as the action
+selection and evaluation is performed using the same ANN, it is not as
+easy to apply DQN effectively as DDPG in a MAS.
+The approach used for the benchmarks was developed by Tampuu
+et al. [54] in which each agent acts independently and learns its
+own action-value estimate. Therefore, the agents effectively consider
+all other agents as part of the environment. These agents receive the
+same reward as the DDPG and MADDPG agents based on each agents
+marginal contribution towards the shared objective of reducing the
+energy bills.
+Both MADQN and multi-agent Rainbow (MARainbow) will be used
+as benchmarks. In previous work [45], Rainbow was found to be
+able to use a larger discrete action-space than regular DQN for ESS
+control where its greater learning properties and sample efficiency
+outperformed the continuous control of DDPG. Therefore, each MADQN
+agent selects from 5 actions whereas the MARainbow agents can select
+from 9 where the actions range from maximum charge of the ESS to
+maximum discharge.
+
+Table 3
+Results of Case Study 1, with the best result of each column highlighted.
+Algorithm
+Table 4
+Adjusted savings of the different approaches.
+Case Study 1
+Algorithm
+Sav.(£1k)Adj.(£1k)vs DDPGESS Loss
+DDPG
+D3PG
+TD342.92
+48.78
+46.6934.39
+40.78
+39.93–
+18.58%
+16.11%19.87%
+16.40%
+14.48%
+MADDPG
+MAD3PG
+MATD359.58
+59.50
+56.1953.24
+53.44
+50.0654.81%
+55.39%
+45.57%10.64%
+10.18%
+10.91%
+MADQN
+MARainbow
+RBM47.28
+52.01
+40.9336.32
+43.90
+33.025.61%
+27.65%
+−3.98%23.18%
+15.59%
+19.33
+
+
+4.4.2. Rule-based model (RBM)
+The same rule-based approach was used as in previous work [55]
+in which the agent will always look to maximise the utilisation of the
+RES. This is standard practice for most ESSs looking to maximise RES,
+but ignores the dynamic energy prices of the wholesale market. The
+ESSs charge when RES generation exceeds demand and discharge when
+reversed. As the different ESSs are suited for different timescales of
+energy storage, the model charges and discharges the SC first, followed
+by the LIB, followed by the VRB.
+
+5. Results and discussion
+This section will present the results for the two case studies. Discus-
+sions will focus on the performance of the agents as well as different
+behaviours between algorithms, while assessing if the single-agent or
+multi-agent approaches were better.
+The performance of the algorithms is divided into the raw savings,
+the savings adjusted for the cost of the ESS operation, percentage
+difference against DDPG, and the percentage of savings lost from the
+ESS. The second case study also considers the savings made directly
+from the MGA.
+5.1. Case study 1: HESS
+This study analysed the use of RL and multi-agent RL for the control
+of a HESS. The results for this case study can be found in Table 3, with
+the smoothed episodic rewards in Fig. 5(a) and adjusted savings over
+time plotted in Fig. 5(b). This case study showed that the agents are
+able to make a significant energy cost savings over two years, even with
+a low fixed selling tariff by maximising the value of the RES generated.
+
+
+
+5.1.1. Algorithm performance
+The multi-agent approaches using the improved game theory re-
+ward performed overwhelmingly better than the single-agent con-
+trollers and the multi-agent methods with shared rewards, with
+MAD3PG performing 55.4% better than DDPG. Not only were the
+multi-agent methods able to use the different ESSs effectively for a
+lower ESS loss, but were also able to make significantly higher savings
+before ESS operating cost is considered too. The individual reward
+functions allow the ESSs operating separately but collaboratively to be
+much more efficient than having all of them controlled together by a
+single controller.
+However, the multi-agent approaches were only better by such an
+extent when each agent used the marginal contribution reward. Table 4
+shows the adjusted savings for the different algorithms in both the
+single global controller (SGC) and MAS, including the results for if
+the MAS agents received the same global reward as the SGC or the
+individual MAS rewards using the marginal contribution baseline; MAS-
+G and MAS-MC respectively. All algorithms perform better using the
+MAS-MC but the effect from SGC to MAS-G is not nearly as consistent,
+including a notable drop in performance for D3PG. This means the
+benefit in using a MAS for this environment comes from being able
+to utilise better reward function design, rather than simply from the
+distributed control.
+MADQN performs fairly well but is clearly limited by the small
+discrete action-space. Despite this, this method shows the value of using
+a multi-agent approach as it is still able to outperform DDPG and TD3
+with the limitation. MARainbow performs better with the larger action-
+space but still cannot reach the level of the multi-agent DDPG-based
+methods as the reinforced inter-agent learning approach appears to be
+inferior to centralised learning.
+RBM performs well but is completely passive on a number of weeks
+where RES never exceeds demand. This shows the RL agents are able
+to more effectively utilise the RES, but can also able to respond to the
+price signals by charging the ESS types when prices are lower in the
+morning to use later when the prices rise.
+
+5.1.2. Agent behaviour
+Most of the agents generally behave in a similar way. The ESSs will
+only really be used at times when there is a large amount of RES to
+store with the agents learning that any PV generation at its peak around
+noon is best to store so it can be used later when prices are higher.
+There is also some charging at the start of the day when prices are
+
+lower, but this is less significant. Due to the battery cycling costs, agents
+very rarely charge or discharge at maximum power but instead look to
+charge and discharge over longer periods of time.
+Almost every agent uses the LIB the most as its well-rounded
+properties make it ideal for storing over short, medium, and long-term.
+The D3PG, MADDPG, MATD3, MADQN, and MARainbow agents then
+use the SC the second most whereas for DDPG and TD3 it is the VRB.
+A clear difference between the single controller versus multiple agent
+methods is that the multi-agent algorithms showed a clear change in
+the behaviour for the different ESS types, whereas it was much less
+pronounced in the single agent algorithms.
+There are a couple of cases of unique behaviour between algorithms
+though. Most notably, the MAD3PG agent uses the SC the most aggres-
+sively, followed by the LIB and then the VRB which is interesting as
+its adjusted savings are the best of any other algorithm. The control
+process of the MAD3PG agent for week 180 is shown in Fig. 6, selected
+as the episode is towards the end of the simulation but has higher RES
+generation than later episodes.
+Other examples of notable behaviours include D3PG which would
+look to store energy over greater lengths of time. However, as the
+demand and price peak cycle with a peak in the evening every day,
+it is more efficient to use as much stored energy as possible at the peakprice times and end the day with minimal charge. Another example is
+the MATD3 VRB agent which stays almost completely idle all of the
+time. The RBM behaves as it is instructed, but the resulting issue is
+that it is completely inactive if RES does not exceed demand whereas
+the other agents still learn to charge when there are low prices in the
+morning regardless of RES.
+The multi-agent algorithms performed better as the agents could
+learn a policy for each type of ESS, rather than a single policy for
+controlling every ESS. Generally, the single agent algorithms would
+operate each ESS as if they had the same properties because it is more
+difficult to differentiate the reward punishments for the multiple ESSs
+when there is only a single reward function. Therefore, the multi-agent
+approach should be considered superior as it allows the learning of
+better individual policies for each ESS.
+5.2. Case study 2: xMG trading
+The results for this case study can be found in Table 5, with the
+smoothed episodic rewards in Fig. 7(a) and adjusted savings over time
+plotted in Fig. 7(b). When compared to the results of Case Study 1, the
+tables shows very clearly that being able to sell energy on the grid’sown terms greatly increases savings over simply trying to improve its
+utilisation. The multi-agent methods once again perform better than the
+single controller, however the margin difference is significantly smaller.
+An example control process across one week is shown in Fig. 8.
+
+Sav.(£1k)Adj.(£1k)vs DDPGESS LossMGAMGA%
+DDPG
+D3PG
+TD3151.38
+158.35
+174.04146.46
+156.75
+170.63–
+7.03%
+16.50%3.25%
+1.01%
+1.96%129.17
+154.39
+157.6888.19%
+98.49%
+92.41%
+MADDPG
+MAD3PG
+MATD3170.36
+187.01
+190.54164.86
+180.17
+186.0012.56%
+23.02%
+27.00%3.23%
+3.66%
+2.38%124.72
+135.84
+144.6875.65%
+75.40%
+77.78%
+
+
+5.2.1. Algorithm performance
+The single-agent methods have a lower adjusted energy cost savings
+than the multi-agent methods, but interestingly D3PG and TD3 returned
+a lower ESS loss percentage and a higher MGA profit than any of the
+multi-agent methods. A key difference between the approaches is that
+single global controllers try to exploit MGA trading significantly more
+than the multi-agent approach. D3PG again shows unique behaviour in
+that it almost entirely ignores the ESSs and instead makes 98.49% of
+its savings through MGA trading, significantly higher than the 77.78%
+of MATD3. Although interesting that D3PG and TD3 are able to make
+so much money through trading, this could be a cause for concern as
+the agents appear to have little interest in exploring how the HESS can
+be used in conjunction with trading for even higher savings.This case study also shows the value of using the marginal contribu-
+tion reward for the multi-agent methods, shown in Table 6. However,
+MATD3 using the MAS-G reward is still able to perform remarkably
+well with a noteworthy improvement over the single agent and only
+slightly worse than with the MAS-MC reward.
+In fact, MATD3 performed the best out of all algorithms with a
+27.00% improvement over DDPG. Interestingly, TD3 also performed
+very well relative to the other single agent methods and was also able
+to outperform MADDPG. This suggests that the value overestimation
+correction from TD3 is particularly useful in this case study. This is
+likely because, even though the agents are aware that they will receive
+a much higher reward through trading than through effective RESutilisation, the TD3 agents do not fixate entirely on trading and develop
+a suboptimal policy where they but instead recognise that effectively
+using the HESS to effectively utilise RES can enhance performance as
+well.
+
+5.2.2. Agent behaviour
+For the ESSs, SC is used more aggressively for short-term storage,
+LIB is used for medium-term storage, and the VRB has varied usage
+between used not at all to usage at the same level as the LIB. In general
+agents are less aggressive with RES utilisation as any excess RES can
+be sold rather than just stored, but also the multi-agent methods are
+more aggressive with the ESSs even when there is little RES generation.
+Some single-agent methods appear to even completely neglect the ESS
+operation for large parts of the simulation.
+Initially, all agents take random actions for 1000 steps but begin
+learning after 500. Afterwards, the first observable behaviour comes
+from the xMGs which immediately learn that buying energy from the
+MGA is cheaper than buying from the utility grid so attempt to buy
+as much as possible. However, the MGA agent would learn one of two
+early behaviours:
+
+1. Sell as much as possible at the minimum reserve price, such as
+MAD3PG and TD3. This leads to a high reward initially but the
+xMGs quickly learn to exploit this and lower their bid prices until
+the MGA ends up selling at lower than the wholesale price and
+losing money.
+2. Sell nothing at the maximum reserve price, such as DDPG and
+MATD3. The MGA will eventually unlearn this behaviour, how-
+ever the superior learning properties of TD3 over regular DDPG
+are clear as the MATD3 agent unlearns this significantly quicker
+than the DDPG and MADDPG agents.
+fter about 100 episodes, the agents reach an equilibrium and
+behave in a similar way but at slightly different levels of efficiency.
+Although the MGA could always sell an amount of energy that would
+meet the demands of all of the xMGs together, it will instead typically
+restrict the volume it sells to force the xMGs to compete with each
+other. An example of the trading is shown in Fig. 9.
+As in the previous case study, the multi-agent approaches perform
+better than the single agent controllers. The separate reward functions
+for the different ESSs allows for each to learn their own policy suited
+to their characteristics while also allowing those agents to not become
+fixated on the high MGA rewards that the single agents fell short to.
+This case study exhibits the benefit of being able to sell energy on
+the primary microgrid’s terms, rather than only selling back to the
+utility grid. Trading is beneficial to all parties in that the primary
+microgrid is able to generate additional revenue, the xMGs are able
+to reduce their own energy bills, and inturn minimises the load on the
+utility grid.
+5.3. Improvements and further work
+One improvement would be expanding the functionality of the
+xMGs. This would include having their own ESSs and RES but also
+their own aggregator agents that would be able to trade with the other
+xMGs. This would take away much of the MGA’s influence on the xMG
+trading phase and could allow the xMGs to develop their own unique
+behaviours.
+A flaw in the environment is that wholesale energy prices are used
+from a day-ahead market, rather than a real-time market. To be more
+realistic, the primary microgrid should decide the volume of energy
+it wishes to import from the utility grid at least 24 h ahead. A more
+accurate feed-in tariff model based which varies based on the amount
+and type of energy sold could also be considered. However, the agents
+already learn to minimise the amount of energy sold back to the
+utility grid so would likely have a negligible impact on results or their
+behaviour.
+Another improvement is forecasting further into the future for more
+efficient long-term storage. In most cases across both case studies, the
+agents tend to avoid using the VRB due to the poor cycling efficiency,
+but it would be interesting to see if the agents would change this
+behaviour if there were more forecasts provided so that the long-term
+storage properties of the VRB could be exploited to more effect.
+Further work could look into other methods of communication
+for multi-agent RL. For example, differential inter-agent learning [56]
+allows the principle of centralised learning to be applied to DQN and
+Rainbow, rather than the current approach where the other agents are
+treated as part of the environment. There could also be other types
+of agents in the grid, such as a specific agent for purchasing energy
+from a day-ahead market or an agent controlling a distributed generator
+powered by diesel or biofuel.
+6. Conclusion
+In this paper, the use of multi-agent reinforcement learning was
+presented for the control of a HESS in a microgrid to increase renewable
+energy utilisation, reduce energy bills, and trade energy to xMGs.
+Specifically, the principle of centralised learning and decentralised
+execution with MADDPG is explored where agents can learn their own
+policies but evaluate their performance by considering the policies of
+every agent in the MAS, as well as more advanced variants of DDPG in
+D3PG and TD3.
+The research found that the multi-agent approaches where each
+agent, with its their own reward function, controls an ESS performed
+better than a single global agent controlling the entire network. The
+separate reward functions for each component allowed the agents to
+more effectively evaluate their individual contribution to the shared
+goal, following the principle of marginal contribution from game the-
+ory. It was also found that selling energy to xMGs through the ag-
+gregator was significantly more profitable than simply maximising
+RES utilisation or selling back to the utility grid at a fixed feed-in
+tariff. Trading energy between the agents was beneficial to the primary
+microgrid through increased revenue, allowed the xMGs to reduce their
+own energy bills, and reduced the load on the main utility grid.
+
+
+
+
+
+
+Algorithm 1 Deep Deterministic Policy Gradient
+1: Initialise critic 𝑄𝜃 (𝑠, 𝑎) and actor 𝜇𝜙 (𝑠) arbitrarily
+2: Initialise target critic 𝑄̂ 𝜃̂ (𝑠, 𝑎), setting 𝜃̂ ← 𝜃
+3: Initialise target actor 𝜇̂ 𝜙̂ (𝑠), setting 𝜙̂ ← 𝜙
+4: Initialise replay memory
+5: for 𝑡 = 0, 𝑇 do
+6:
+Observe state 𝑠𝑡
+7:
+Choose action 𝑎𝑡 = 𝜇𝜙 (𝑠𝑡 )
+8:
+Execute 𝑎𝑡 , observe reward 𝑟𝑡 and next state 𝑠𝑡+1
+9:
+Store transition ⟨𝑠𝑡 , 𝑎𝑡 , 𝑟𝑡 , 𝑠𝑡+1 ⟩ in memory
+10:
+Sample minibatch ⟨𝑠𝑖 , 𝑎𝑖 , 𝑟𝑖 , 𝑠𝑖+1 ⟩ from memory
+11:
+Calculate target 𝑦𝑖 = 𝑟𝑖 + 𝛾 𝑄̂ 𝜃̂ (𝑠𝑖+1 , 𝜇̂ 𝜙̂ (𝑠𝑖+1 ))
+12:
+Critic loss 𝑖 (𝜃) = E (𝑦𝑖 − 𝑄𝜃 (𝑠𝑖 , 𝑎𝑖 ))2
+13:
+Perform gradient descent on 𝜃 using (𝜃)
+[
+]
+14:
+Actor loss ∇𝜙 𝐽 (𝜙) = E ∇𝑎 𝑄𝜃 (𝑠, 𝑎)|𝑎=𝜇(𝑠) ∇𝜙 𝜇𝜙 (𝑠)
+15:
+Perform gradient ascent on 𝜙 using ∇𝜙 𝐽 (𝜙)
+16:
+Update critic weights 𝜃̂ ← 𝜏𝜃 + (1 − 𝜏)𝜃̂
+17:
+Update actor weights 𝜙̂ ← 𝜏𝜙 + (1 − 𝜏)𝜙̂
+18: end for
+
+
+
+

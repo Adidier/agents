@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PyTorch y Redes Neuronales — Simulación MADDPG Microgrid</title>
+  <style>
+    :root {
+      --bg: #0a0d16;
+      --surface: #101425;
+      --surface2: #161b30;
+      --surface3: #1c2240;
+      --border: #252d4a;
+      --accent:  #6c8cff;
+      --accent2: #ff7c5c;
+      --accent3: #40cfa0;
+      --accent4: #f5c542;
+      --actor-c: #a78bfa;
+      --critic-c: #38bdf8;
+      --noisy-c: #f472b6;
+      --dist-c:  #fb923c;
+      --mad-c:   #34d399;
+      --text: #dde4f5;
+      --text-muted: #7988aa;
+      --code-bg: #070b14;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.72;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      background: linear-gradient(140deg, #06102e 0%, #120826 40%, #06201a 100%);
+      padding: 64px 40px 52px;
+      border-bottom: 2px solid var(--border);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 60% 40% at 50% 0%, rgba(108,140,255,0.12), transparent);
+    }
+    .hero .badge {
+      display: inline-block;
+      background: rgba(108,140,255,0.12);
+      border: 1px solid rgba(108,140,255,0.4);
+      color: var(--accent);
+      border-radius: 20px;
+      padding: 4px 16px;
+      font-size: 0.74rem;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-size: 2.7rem;
+      font-weight: 800;
+      background: linear-gradient(120deg, #a0b4ff 10%, #40cfa0 60%, #ff9f7c 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 14px;
+      position: relative;
+    }
+    .hero p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      max-width: 720px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    /* ── Container ── */
+    .container { max-width: 1120px; margin: 0 auto; padding: 44px 28px; }
+
+    /* ── TOC ── */
+    .toc {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 26px 32px;
+      margin-bottom: 36px;
+      columns: 2;
+      column-gap: 40px;
+    }
+    .toc h2 { font-size: 0.78rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 14px; column-span: all; }
+    .toc li { list-style: none; margin: 7px 0; }
+    .toc a  { color: #7c9cff; text-decoration: none; font-size: 0.91rem; }
+    .toc a:hover { color: var(--accent3); }
+    @media(max-width: 650px){ .toc { columns: 1; } }
+
+    /* ── Section ── */
+    .section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 34px 38px;
+      margin-bottom: 34px;
+    }
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 1.45rem;
+      font-weight: 700;
+      margin-bottom: 26px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-title .icon {
+      width: 42px; height: 42px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin: 28px 0 10px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    h3:first-child { margin-top: 0; }
+    h4 {
+      font-size: 0.92rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin: 18px 0 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    p { margin-bottom: 13px; color: var(--text); }
+
+    /* ── Code ── */
+    pre, code { font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace; }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      overflow-x: auto;
+      font-size: 0.83rem;
+      line-height: 1.65;
+      margin: 16px 0;
+    }
+    code {
+      background: rgba(108,140,255,0.1);
+      color: var(--accent);
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 0.87em;
+    }
+    pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+    .kw  { color: #c792ea; }
+    .fn  { color: #82aaff; }
+    .str { color: #c3e88d; }
+    .num { color: #f78c6c; }
+    .cmt { color: #4a5568; font-style: italic; }
+    .cls { color: #ffcb6b; }
+    .op  { color: #89ddff; }
+    .var { color: #eeffff; }
+    .dec { color: #ff9cac; }
+
+    /* ── Callouts ── */
+    .callout {
+      border-radius: 10px;
+      padding: 15px 20px;
+      margin: 16px 0;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+    .callout.info   { background: rgba(108,140,255,0.08); border-left: 4px solid var(--accent); }
+    .callout.warn   { background: rgba(245,197,66,0.08);  border-left: 4px solid var(--accent4); }
+    .callout.tip    { background: rgba(64,207,160,0.08);  border-left: 4px solid var(--accent3); }
+    .callout.paper  { background: rgba(167,139,250,0.08); border-left: 4px solid var(--actor-c); }
+    .callout .ico   { flex-shrink: 0; font-size: 1.1rem; margin-top: 1px; }
+
+    /* ── Cards ── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+      margin: 18px 0;
+    }
+    .card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 22px 24px;
+    }
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card p { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 0; }
+
+    /* ── Net diagram ── */
+    .net-diagram {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 32px 20px;
+      margin: 18px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .nd-box {
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      text-align: center;
+      min-width: 90px;
+    }
+    .nd-box small { display: block; font-weight: 400; font-size: 0.72rem; margin-top: 2px; opacity: 0.8; }
+    .nd-arrow { color: var(--text-muted); font-size: 1.4rem; }
+    .nd-input  { background: rgba(108,140,255,0.15); border: 1px solid var(--accent);  color: var(--accent); }
+    .nd-hidden { background: rgba(64,207,160,0.12);  border: 1px solid var(--accent3); color: var(--accent3); }
+    .nd-noisy  { background: rgba(244,114,182,0.12); border: 1px solid var(--noisy-c); color: var(--noisy-c); }
+    .nd-output { background: rgba(255,124,92,0.15);  border: 1px solid var(--accent2); color: var(--accent2); }
+    .nd-tanh   { background: rgba(245,197,66,0.12);  border: 1px solid var(--accent4); color: var(--accent4); }
+    .nd-global { background: rgba(52,211,153,0.12);  border: 1px solid var(--mad-c);   color: var(--mad-c); }
+    .nd-dist   { background: rgba(251,146,60,0.12);  border: 1px solid var(--dist-c);  color: var(--dist-c); }
+
+    /* ── Table ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 18px 0;
+      font-size: 0.89rem;
+    }
+    th {
+      background: var(--surface2);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-align: left;
+      padding: 10px 16px;
+      border-bottom: 2px solid var(--border);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    td { padding: 10px 16px; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.015); }
+    .td-ref { color: var(--actor-c); font-size: 0.8rem; }
+
+    /* ── Tag pills ── */
+    .pill {
+      display: inline-block;
+      border-radius: 12px;
+      padding: 2px 10px;
+      font-size: 0.76rem;
+      font-weight: 600;
+    }
+    .pill.actor  { background: rgba(167,139,250,0.2); color: var(--actor-c); }
+    .pill.critic { background: rgba(56,189,248,0.2);  color: var(--critic-c); }
+    .pill.noisy  { background: rgba(244,114,182,0.2); color: var(--noisy-c); }
+    .pill.dist   { background: rgba(251,146,60,0.2);  color: var(--dist-c); }
+    .pill.maddpg { background: rgba(52,211,153,0.2);  color: var(--mad-c); }
+    .pill.dqn    { background: rgba(108,140,255,0.2); color: var(--accent); }
+
+    /* ── Flow ── */
+    .flow {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+      margin: 16px 0; font-size: 0.87rem;
+    }
+    .flow-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+    }
+    .flow-box.hl { border-color: var(--accent); color: var(--accent); }
+    .flow-arr { color: var(--text-muted); font-size: 1.2rem; }
+
+    /* ── CTDE diagram ── */
+    .ctde {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      margin: 20px 0;
+      font-size: 0.88rem;
+    }
+    .ctde-col {
+      padding: 22px 28px;
+    }
+    .ctde-col:first-child { background: rgba(108,140,255,0.07); border-right: 1px solid var(--border); }
+    .ctde-col:last-child  { background: rgba(64,207,160,0.07); }
+    .ctde-col h4 { font-weight: 700; font-size: 0.9rem; margin-bottom: 10px; color: var(--text); }
+    .ctde-col ul { padding-left: 18px; color: var(--text-muted); }
+    .ctde-col li { margin: 6px 0; }
+    @media(max-width:620px){ .ctde { grid-template-columns: 1fr; } .ctde-col:first-child { border-right: none; border-bottom: 1px solid var(--border); } }
+
+    /* ── Agent grid ── */
+    .agent-row {
+      display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0;
+      align-items: flex-start;
+    }
+    .agent-box {
+      flex: 1; min-width: 120px;
+      border-radius: 10px;
+      padding: 14px 16px;
+      text-align: center;
+      font-size: 0.83rem;
+    }
+    .agent-box .a-name { font-weight: 700; margin-bottom: 4px; }
+    .agent-box .a-sub  { color: var(--text-muted); font-size: 0.77rem; }
+    .agent-box.lib { background: rgba(108,140,255,0.12); border: 1px solid rgba(108,140,255,0.4); }
+    .agent-box.vrb { background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.4); }
+    .agent-box.sc  { background: rgba(64,207,160,0.12);  border: 1px solid rgba(64,207,160,0.4); }
+    .agent-box.mga { background: rgba(245,197,66,0.12);  border: 1px solid rgba(245,197,66,0.4); }
+    .agent-box.xmg { background: rgba(251,146,60,0.12);  border: 1px solid rgba(251,146,60,0.4); }
+    .agent-box.global-c { background: rgba(52,211,153,0.1); border: 2px dashed rgba(52,211,153,0.5); }
+
+    /* ── Training loop ── */
+    .loop-step {
+      display: flex; gap: 14px; margin: 12px 0; align-items: flex-start;
+    }
+    .loop-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.78rem; font-weight: 700; flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .loop-text { color: var(--text); font-size: 0.91rem; line-height: 1.6; }
+    .loop-text code { font-size: 0.84em; }
+
+    /* ── Equation ── */
+    .eq {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 24px;
+      margin: 14px 0;
+      font-family: 'Cascadia Code', monospace;
+      font-size: 0.87rem;
+      color: #e0e8ff;
+      text-align: center;
+    }
+    .eq .eq-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; }
+
+    @media(max-width:700px){
+      .hero h1 { font-size: 1.9rem; }
+      .section { padding: 24px 20px; }
+      .net-diagram { flex-direction: column; }
+      .nd-arrow { transform: rotate(90deg); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="badge">Arquitectura de Redes · Paper Analysis</div>
+  <h1>PyTorch y Redes Neuronales en el Proyecto</h1>
+  <p>Explicación detallada de cómo se usa PyTorch, qué tipo de redes se implementan
+     y por qué cada decisión de diseño corresponde exactamente al artículo.</p>
+</div>
+
+<div class="container">
+
+<!-- TOC -->
+<div class="toc">
+  <h2>Índice</h2>
+  <li><a href="#stack">1. Stack PyTorch del proyecto</a></li>
+  <li><a href="#mlp">2. MLP base — 2 capas ocultas × 256</a></li>
+  <li><a href="#actor">3. Red Actor μ_φ(s) → acción</a></li>
+  <li><a href="#noisy">4. Capa NoisyLinear (exploración)</a></li>
+  <li><a href="#critic">5. Red Crítico Q_θ(s,a)</a></li>
+  <li><a href="#maddpg-critic">6. Crítico MADDPG centralizado</a></li>
+  <li><a href="#dist">7. Crítico Distribucional D3PG</a></li>
+  <li><a href="#dqn">8. Red DQN (benchmark MADQN)</a></li>
+  <li><a href="#ctde">9. CTDE: training centralizado / ejecución descentralizada</a></li>
+  <li><a href="#training">10. Ciclo de entrenamiento PyTorch</a></li>
+  <li><a href="#table2">11. Correspondencia exacta con Tabla 2 del paper</a></li>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     1. STACK PYTORCH
+═══════════════════════════════════════════════════════════ -->
+<div class="section" id="stack">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(108,140,255,0.12);">⚙️</div>
+    1. Stack PyTorch del proyecto
+  </div>
+
+  <p>Todo el aprendizaje por refuerzo usa <strong>PyTorch</strong> puro.
+     No se usa ningún framework de RL de alto nivel (no Stable-Baselines, no RLlib).
+     Esto permite replicar exactamente la arquitectura del paper.</p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-title" style="color:var(--accent);">torch.nn.Module</div>
+      <p>Base de todas las redes neuronales. Cada red hereda de <code>nn.Module</code>
+         y define su grafo computacional en <code>forward()</code>.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--accent3);">torch.optim.Adam</div>
+      <p>Optimizador para todos los parámetros (actor y crítico). Learning rates
+         exactos del paper: actor <code>5e-4</code>, crítico <code>1e-3</code>.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--noisy-c);">torch.nn.functional</div>
+      <p>Se usa <code>F.mse_loss</code>, <code>F.log_softmax</code>,
+         <code>F.relu</code>. Operaciones de forward puras sin estado.</p>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--dist-c);">nn.utils.clip_grad_norm_</div>
+      <p>Gradient clipping a norma 1.0 en todos los updates.
+         Previene explosión de gradientes en episodios largos (168 steps).</p>
+    </div>
+  </div>
+
+  <h3>Módulos del proyecto que usan PyTorch</h3>
+  <table>
+    <tr><th>Archivo</th><th>Qué define</th><th>Redes usadas</th></tr>
+    <tr><td><code>networks.py</code></td><td>Todas las arquitecturas base</td><td>Actor, Critic, MADDPGCritic, DistributionalCritic, NoisyLinear, _DQNNetwork</td></tr>
+    <tr><td><code>ddpg.py</code></td><td>Agente DDPG</td><td>Actor + Critic + target networks</td></tr>
+    <tr><td><code>td3.py</code></td><td>Agente TD3 (Twin Delayed)</td><td>Actor + 2 × Critic (Twin)</td></tr>
+    <tr><td><code>d3pg.py</code></td><td>Agente D3PG (distribucional)</td><td>Actor + DistributionalCritic</td></tr>
+    <tr><td><code>maddpg.py</code></td><td>Sistema multi-agente MADDPG</td><td>N × Actor + N × MADDPGCritic</td></tr>
+    <tr><td><code>benchmarks.py</code></td><td>Benchmarks no-DDPG</td><td>_DQNNetwork (MADQN)</td></tr>
+  </table>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     2. MLP BASE
+═══════════════════════════════════════════════════════════ -->
+<div class="section" id="mlp">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(64,207,160,0.12);">🏗️</div>
+    2. MLP base — 2 capas ocultas × 256 neuronas
+  </div>
+
+  <p>
+    Tanto el actor como el crítico comparten la misma <strong>topología base</strong>:
+    un <em>Multi-Layer Perceptron</em> con dos capas ocultas de 256 neuronas y
+    activación ReLU. Este número viene directamente de la <strong>Tabla 2</strong>
+    del paper (<em>"Hidden layers: 256 units"</em>).
+  </p>
+
+  <pre><code><span class="cmt"># networks.py — función helper compartida por Actor y Critic</span>
+<span class="kw">def</span> <span class="fn">_mlp_body</span>(input_dim: int, hidden_dim: int) -> nn.Sequential:
+    <span class="str">"""Dos capas ocultas ReLU de 256 unidades (Table 2 del paper)."""</span>
+    <span class="kw">return</span> nn.Sequential(
+        nn.Linear(input_dim, hidden_dim), nn.ReLU(),   <span class="cmt"># capa 1: obs → 256</span>
+        nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),  <span class="cmt"># capa 2: 256 → 256</span>
+    )</code></pre>
+
+  <div class="net-diagram">
+    <div class="nd-box nd-input">Entrada<small>obs_dim</small></div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-hidden">Linear(256)<br/>ReLU</div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-hidden">Linear(256)<br/>ReLU</div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-output">Cabeza<small>actor o critic</small></div>
+  </div>
+
+  <div class="callout paper">
+    <div class="ico">📄</div>
+    <div><strong>Paper §Table 2:</strong> "Number of hidden layers: 2, Nodes per layer: 256".
+    La función <code>_mlp_body</code> es la traducción directa de esa especificación.
+    El <code>hidden_dim</code> es configurable en <code>DDPGConfig</code> pero por defecto es 256.</div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     3. ACTOR
+═══════════════════════════════════════════════════════════ -->
+<div class="section" id="actor">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(167,139,250,0.12);">🎭</div>
+    3. Red Actor μ_φ(s) → acción continua ∈ (−1, 1)
+  </div>
+
+  <p>
+    El actor implementa la <strong>política determinista</strong> μ_φ(s).
+    Dado el estado de observación local, produce una acción continua en (−1, 1)
+    que representa la fracción de carga/descarga del ESS
+    (o la acción de compra/venta para MGA y xMGs).
+  </p>
+
+  <pre><code><span class="kw">class</span> <span class="cls">Actor</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, obs_dim, action_dim, hidden_dim=<span class="num">256</span>):
+        self.body = _mlp_body(obs_dim, hidden_dim)      <span class="cmt"># MLP base (2×256 ReLU)</span>
+        self.head = NoisyLinear(hidden_dim, action_dim) <span class="cmt"># exploración parametrizada</span>
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, obs):
+        <span class="kw">return</span> torch.tanh(self.head(self.body(obs)))   <span class="cmt"># salida acotada (−1, 1)</span></code></pre>
+
+  <div class="net-diagram">
+    <div class="nd-box nd-input">obs local<small>obs_dim</small></div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-hidden">Linear(256)<br/>ReLU</div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-hidden">Linear(256)<br/>ReLU</div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-noisy">NoisyLinear<small>exploración</small></div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-tanh">tanh<small>→ (−1, 1)</small></div>
+  </div>
+
+  <p>
+    La capa final es un <code>NoisyLinear</code> (ver sección 4) en lugar de
+    <code>nn.Linear</code> normal. Después se aplica <code>torch.tanh</code>
+    para acotar estrictamente la salida a (−1, 1).
+  </p>
+
+  <h3>¿Qué significa la acción (−1, 1)?</h3>
+  <table>
+    <tr><th>Agente</th><th>Acción = −1</th><th>Acción = 0</th><th>Acción = +1</th></tr>
+    <tr><td>LIB / VRB / SC</td><td>Descarga máxima (−X_max MW)</td><td>Inactivo</td><td>Carga máxima (+X_max MW)</td></tr>
+    <tr><td>MGA (microgrid agent)</td><td>Vende al máximo</td><td>Sin operación</td><td>Compra al máximo</td></tr>
+    <tr><td>xMG (vecina)</td><td>Vende energía</td><td>Neutral</td><td>Compra energía</td></tr>
+  </table>
+
+  <div class="callout tip">
+    <div class="ico">💡</div>
+    <div>El entorno convierte la acción normalizada a MW reales:
+    <code>P_real = action × X_max</code>, donde <code>X_max = 1.0 MW</code>
+    por ESS (Tabla 1 del paper).</div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     4. NOISY LINEAR
+═══════════════════════════════════════════════════════════ -->
+<div class="section" id="noisy">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(244,114,182,0.12);">🎲</div>
+    4. Capa NoisyLinear — exploración parametrizada
+  </div>
+
+  <p>
+    En lugar de usar una política ε-greedy o añadir ruido Ornstein-Uhlenbeck,
+    el paper elige <strong>NoisyNet</strong> (Fortunato et al. 2017): el ruido
+    de exploración está <em>aprendido</em> dentro de los propios pesos de
+    la red. Así la exploración se adapta automáticamente durante el entrenamiento.
+  </p>
+
+  <h3>Cómo funciona matemáticamente</h3>
+  <p>Cada peso de la capa tiene dos componentes: un valor medio μ y una
+     desviación σ. Durante training se muestrea ruido factorizado y el
+     peso efectivo es:</p>
+
+  <div class="eq">
+    w = μ_w + σ_w ⊙ ε_w   ,   b = μ_b + σ_b ⊙ ε_b
+    <div class="eq-label">ε ~ función de ruido factorizado (Fortunato et al. 2017, Ec. factorised noise)</div>
+  </div>
+
+  <pre><code><span class="kw">class</span> <span class="cls">NoisyLinear</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, in_features, out_features, sigma_init=<span class="num">0.5</span>):
+        <span class="cmt"># Parámetros aprendibles: μ y σ para pesos y bias</span>
+        self.weight_mu    = nn.Parameter(torch.empty(out_features, in_features))
+        self.weight_sigma = nn.Parameter(torch.empty(out_features, in_features))
+        self.bias_mu      = nn.Parameter(torch.empty(out_features))
+        self.bias_sigma   = nn.Parameter(torch.empty(out_features))
+
+        <span class="cmt"># Buffers de ruido (re-muestreados en cada forward)</span>
+        self.register_buffer(<span class="str">"weight_eps"</span>, torch.empty(out_features, in_features))
+        self.register_buffer(<span class="str">"bias_eps"</span>,   torch.empty(out_features))
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x):
+        <span class="kw">if</span> self.training:
+            w = self.weight_mu + self.weight_sigma * self.weight_eps  <span class="cmt"># ruido activo</span>
+            b = self.bias_mu   + self.bias_sigma   * self.bias_eps
+        <span class="kw">else</span>:
+            w = self.weight_mu   <span class="cmt"># inferencia: solo la media (determinista)</span>
+            b = self.bias_mu
+        <span class="kw">return</span> F.linear(x, w, b)</code></pre>
+
+  <h3>Ruido factorizado (eficiencia computacional)</h3>
+  <pre><code><span class="kw">@staticmethod</span>
+<span class="kw">def</span> <span class="fn">_scale_noise</span>(size):
+    x = torch.randn(size)
+    <span class="kw">return</span> x.sign() * x.abs().sqrt()   <span class="cmt"># f(x) = sgn(x)·√|x|</span>
+
+<span class="kw">def</span> <span class="fn">sample_noise</span>(self):
+    eps_in  = self._scale_noise(self.in_features)   <span class="cmt"># vector p</span>
+    eps_out = self._scale_noise(self.out_features)  <span class="cmt"># vector q</span>
+    self.weight_eps.copy_(eps_out.outer(eps_in))    <span class="cmt"># outer product p×q → matriz</span>
+    self.bias_eps.copy_(eps_out)</code></pre>
+
+  <div class="callout paper">
+    <div class="ico">📄</div>
+    <div><strong>Paper §3.2 — Exploration:</strong> "We employ NoisyNet to replace
+    the standard ε-greedy or Ornstein-Uhlenbeck noise. The noise parameters σ
+    are learned alongside the policy parameters φ by gradient descent."
+    La implementación es exactamente Fortunato et al. factorised noise.</div>
+  </div>
+
+  <div class="callout info">
+    <div class="ico">ℹ️</div>
+    <div>Durante <strong>evaluación</strong> (<code>model.eval()</code>)
+    el código usa solo la media <code>weight_mu</code>, sin ruido.
+    Esto corresponde al comportamiento greedy determinista que el paper
+    describe para los episodios de evaluación.</div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     5. CRÍTICO DDPG
+═══════════════════════════════════════════════════════════ -->
+<div class="section" id="critic">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(56,189,248,0.12);">🎯</div>
+    5. Red Crítico Q_θ(s, a) — crítico estándar DDPG/TD3
+  </div>
+
+  <p>
+    El crítico estima el valor de largo plazo de tomar la acción <em>a</em>
+    en el estado <em>s</em>. Es un MLP que concatena estado y acción como entrada
+    y produce un escalar Q.
+  </p>
+
+  <pre><code><span class="kw">class</span> <span class="cls">Critic</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, obs_dim, action_dim, hidden_dim=<span class="num">256</span>):
+        self.net = nn.Sequential(
+            nn.Linear(obs_dim <span class="op">+</span> action_dim, hidden_dim), nn.ReLU(), <span class="cmt"># entrada: [s‖a]</span>
+            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, <span class="num">1</span>),                                <span class="cmt"># salida: Q escalar</span>
+        )
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, obs, action):
+        <span class="kw">return</span> self.net(torch.cat([obs, action], dim=-<span class="num">1</span>))</code></pre>
+
+  <div class="net-diagram">
+    <div class="nd-box nd-input">obs_i<small>local</small></div>
+    <div class="nd-arrow">+</div>
+    <div class="nd-box nd-input">action_i<small>local</small></div>
+    <div class="nd-arrow">→ cat →</div>
+    <div class="nd-box nd-hidden">Linear(256)<br/>ReLU</div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-hidden">Linear(256)<br/>ReLU</div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-output">Q(s,a)<small>escalar</small></div>
+  </div>
+
+  <h3>¿Por qué concatenar estado y acción al inicio?</h3>
+  <p>
+    Una alternativa clásica es inyectar la acción en la segunda capa.
+    El paper sigue la variante donde <code>[obs ‖ action]</code> se concatenan
+    <em>antes</em> de la primera capa, permitiendo que la red aprenda
+    interacciones estado-acción desde el principio. Esta es la arquitectura
+    descrita en Lillicrap et al. (DDPG original).
+  </p>
+
+  <h3>TD3: dos críticos gemelos</h3>
+  <p>
+    Para TD3, se instancian <strong>dos críticos independientes</strong>
+    (<code>Critic1</code> y <code>Critic2</code>) con la misma arquitectura.
+    En el cálculo del target se usa el mínimo de ambos para reducir
+    la sobreestimación:
+  </p>
+  <div class="eq">
+    y = r + γ · min(Q₁_target(s', ã), Q₂_target(s', ã))
+    <div class="eq-label">TD3 twin critics — Fujimoto et al. 2018</div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     6. CRÍTICO MADDPG CENTRALIZADO
+═══════════════════════════════════════════════════════════ -->
+<div class="section" id="maddpg-critic">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(52,211,153,0.12);">🌐</div>
+    6. MADDPGCritic — Crítico centralizado multi-agente
+  </div>
+
+  <p>
+    Esta es la <strong>pieza clave</strong> de MADDPG y la que lo diferencia
+    del simple DDPG. El crítico de cada agente recibe las observaciones
+    <em>y</em> acciones de <strong>todos</strong> los agentes durante el
+    entrenamiento.
+  </p>
+
+  <pre><code><span class="kw">class</span> <span class="cls">MADDPGCritic</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, total_obs_dim, total_action_dim, hidden_dim=<span class="num">256</span>):
+        <span class="cmt"># total_obs_dim    = sum de obs de TODOS los agentes</span>
+        <span class="cmt"># total_action_dim = sum de acciones de TODOS los agentes</span>
+        self.net = nn.Sequential(
+            nn.Linear(total_obs_dim <span class="op">+</span> total_action_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, <span class="num">1</span>),
+        )
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, obs_all, actions_all):
+        <span class="kw">return</span> self.net(torch.cat([obs_all, actions_all], dim=-<span class="num">1</span>))</code></pre>
+
+  <h3>Dimensiones en Case Study 2 (9 agentes)</h3>
+  <div class="agent-row">
+    <div class="agent-box lib"><div class="a-name">LIB</div><div class="a-sub">obs_i + act_i</div></div>
+    <div class="agent-box vrb"><div class="a-name">VRB</div><div class="a-sub">obs_i + act_i</div></div>
+    <div class="agent-box sc"><div class="a-name">SC</div><div class="a-sub">obs_i + act_i</div></div>
+    <div class="agent-box mga"><div class="a-name">MGA</div><div class="a-sub">obs_i + 2 act</div></div>
+    <div class="agent-box xmg"><div class="a-name">xMG ×5</div><div class="a-sub">obs_i + 2 act cada</div></div>
+  </div>
+  <div class="net-diagram" style="margin-top:8px;">
+    <div class="nd-box nd-input">obs_all<small>concat 9 agentes</small></div>
+    <div class="nd-arrow">+</div>
+    <div class="nd-box nd-input">actions_all<small>15 dims (CS2)</small></div>
+    <div class="nd-arrow">→ cat →</div>
+    <div class="nd-box nd-global">Linear(256)<br/>ReLU</div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-global">Linear(256)<br/>ReLU</div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-output">Q_i(s_all, a_all)<small>escalar</small></div>
+  </div>
+
+  <div class="callout paper">
+    <div class="ico">📄</div>
+    <div><strong>Paper §3.3 — MADDPG:</strong> "The critic Q_i is augmented with
+    information about the policies of other agents: Q_i(x, a₁,…,aN) where x is
+    the global state and a_j are the actions of all agents. This enables stable
+    learning in a non-stationary environment."</div>
+  </div>
+
+  <h3>Cada agente tiene SU PROPIO crítico centralizado</h3>
+  <p>
+    No hay un único crítico compartido. Hay <strong>N críticos</strong> (uno por agente),
+    cada uno entrenado para estimar la recompensa <em>de su agente</em> dado el estado
+    y acciones globales. Esto se instancia en <code>maddpg.py</code>:
+  </p>
+  <pre><code><span class="cmt"># Dentro de _MADDPGAgent.__init__():</span>
+self.actor   = <span class="cls">Actor</span>(obs_dim, action_dim, cfg.hidden_dim)          <span class="cmt"># observación local</span>
+self.critic  = <span class="cls">MADDPGCritic</span>(total_obs_dim, total_action_dim, cfg.hidden_dim)  <span class="cmt"># visión global</span>
+
+<span class="cmt"># total_obs_dim    = sum(obs_dims)    → toda la información del entorno</span>
+<span class="cmt"># total_action_dim = sum(action_dims) → CS1: 3 dims, CS2: 15 dims</span></code></pre>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     7. CRÍTICO DISTRIBUCIONAL D3PG
+═══════════════════════════════════════════════════════════ -->
+<div class="section" id="dist">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(251,146,60,0.12);">📊</div>
+    7. DistributionalCritic — D3PG (C51-style)
+  </div>
+
+  <p>
+    Para el algoritmo <strong>D3PG</strong> (Distributed Distributional DDPG),
+    el crítico no produce un escalar Q sino una <strong>distribución de probabilidad</strong>
+    sobre valores de retorno posibles. Esto es el enfoque C51 de Bellemare et al.
+  </p>
+
+  <pre><code><span class="kw">class</span> <span class="cls">DistributionalCritic</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, obs_dim, action_dim, n_atoms=<span class="num">51</span>, hidden_dim=<span class="num">256</span>):
+        self.n_atoms = n_atoms
+        self.net = nn.Sequential(
+            nn.Linear(obs_dim <span class="op">+</span> action_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, n_atoms),   <span class="cmt"># salida: n_atoms logits</span>
+        )
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, obs, action):
+        logits = self.net(torch.cat([obs, action], dim=-<span class="num">1</span>))
+        <span class="kw">return</span> F.log_softmax(logits, dim=-<span class="num">1</span>)   <span class="cmt"># distribución log-prob</span>
+
+    <span class="kw">def</span> <span class="fn">q_value</span>(self, obs, action, support):
+        probs = self.probs(obs, action)         <span class="cmt"># (batch, 51)</span>
+        <span class="kw">return</span> (probs * support.unsqueeze(<span class="num">0</span>)).sum(dim=-<span class="num">1</span>)  <span class="cmt"># E[Z] = Σ p_i·z_i</span></code></pre>
+
+  <div class="net-diagram">
+    <div class="nd-box nd-input">[obs ‖ action]<small>concat</small></div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-hidden">256 ReLU</div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-hidden">256 ReLU</div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-dist">51 logits<small>log_softmax</small></div>
+    <div class="nd-arrow">→</div>
+    <div class="nd-box nd-output">Z(s,a) ~ p<small>distribución</small></div>
+  </div>
+
+  <div class="callout paper">
+    <div class="ico">📄</div>
+    <div><strong>Paper §3.4 — D3PG:</strong> "The critic is replaced by a
+    distributional variant (C51, n=51 atoms) that models the full return
+    distribution Z(s,a) instead of the expectation Q(s,a)."
+    La pérdida usada es KL-divergence entre la distribución proyectada
+    del target y la distribución actual.</div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     8. DQN (BENCHMARK)
+═══════════════════════════════════════════════════════════ -->
+<div class="section" id="dqn">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(108,140,255,0.12);">🔵</div>
+    8. _DQNNetwork — Benchmark MADQN
+  </div>
+
+  <p>
+    El benchmark MADQN usa la misma topología MLP pero con una diferencia crucial:
+    la salida no es una acción sino <strong>un valor Q por cada acción discreta</strong>.
+    Con <code>n_actions=5</code> la red devuelve 5 Q-values.
+  </p>
+
+  <pre><code><span class="kw">class</span> <span class="cls">_DQNNetwork</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, obs_dim, n_actions, hidden_dim=<span class="num">256</span>):
+        self.net = nn.Sequential(
+            nn.Linear(obs_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+            nn.Linear(hidden_dim, n_actions),   <span class="cmt"># Q(s,0)…Q(s,4)</span>
+        )                                       <span class="cmt"># sin tanh: valores sin acotar</span></code></pre>
+
+  <h3>Diferencia clave vs Actor</h3>
+  <table>
+    <tr><th></th><th>Actor (DDPG/MADDPG)</th><th>_DQNNetwork (MADQN)</th></tr>
+    <tr><td>Salida</td><td>Una acción continua por dim</td><td>n_actions Q-values</td></tr>
+    <tr><td>Activación final</td><td>tanh → (−1, 1)</td><td>ninguna (Q sin límite)</td></tr>
+    <tr><td>Acción elegida</td><td>directo: la salida</td><td>argmax: índice del Q mayor</td></tr>
+    <tr><td>Capa de exploración</td><td>NoisyLinear</td><td>ε-greedy externo</td></tr>
+    <tr><td>Espacio de acciones</td><td>Continuo R^n</td><td>Discreto {0,1,2,3,4}</td></tr>
+  </table>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     9. CTDE
+═══════════════════════════════════════════════════════════ -->
+<div class="section" id="ctde">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(52,211,153,0.12);">🔄</div>
+    9. CTDE — Centralised Training, Decentralised Execution
+  </div>
+
+  <p>
+    Este es el paradigma fundamental del paper. Las redes PyTorch reflejan
+    esta dualidad directamente en su diseño:
+  </p>
+
+  <div class="ctde">
+    <div class="ctde-col">
+      <h4 style="color:var(--accent);">🎓 Entrenamiento centralizado</h4>
+      <ul>
+        <li>El crítico recibe <code>obs_all</code> + <code>actions_all</code></li>
+        <li>Acceso a información global del entorno</li>
+        <li>Loss calculada con Q-values globales</li>
+        <li>Gradientes del actor dependen del crítico global</li>
+        <li>Solo ocurre offline / en replay buffer</li>
+      </ul>
+    </div>
+    <div class="ctde-col">
+      <h4 style="color:var(--accent3);">⚡ Ejecución descentralizada</h4>
+      <ul>
+        <li>El actor recibe solo <code>obs_i</code> local</li>
+        <li>No conoce acciones de otros agentes</li>
+        <li>Infiere a tiempo real con solo sensores propios</li>
+        <li>Realista: cada ESS o microrred opera de forma autónoma</li>
+        <li>En evaluación: <code>actor.eval()</code> → sin ruido</li>
+      </ul>
+    </div>
+  </div>
+
+  <pre><code><span class="cmt"># Durante ENTRENAMIENTO (update() en maddpg.py):</span>
+<span class="cmt"># obs_all = cat([obs_0, obs_1, ..., obs_N])  ← visión global</span>
+q_current = agent.critic(obs_all, actions_all)        <span class="cmt"># crítico: info global</span>
+
+<span class="cmt"># Durante EJECUCIÓN (select_actions() en maddpg.py):</span>
+action_i = agent.actor(obs_i)     <span class="cmt"># actor: solo observación propia</span></code></pre>
+
+  <div class="callout paper">
+    <div class="ico">📄</div>
+    <div><strong>Paper §3.3:</strong> "During execution, each agent uses only its
+    local observations. The centralised critic is used only during training and
+    discarded at deployment." Esta separación está implementada literalmente:
+    el actor solo necesita <code>obs_i</code> en producción.</div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     10. CICLO DE ENTRENAMIENTO
+═══════════════════════════════════════════════════════════ -->
+<div class="section" id="training">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(245,197,66,0.12);">🔁</div>
+    10. Ciclo de entrenamiento PyTorch — paso a paso
+  </div>
+
+  <p>Este es el flujo completo de un paso de actualización en MADDPG:</p>
+
+  <div class="loop-step">
+    <div class="loop-num" style="background:rgba(108,140,255,0.2);color:var(--accent);">1</div>
+    <div class="loop-text"><strong>Muestrear mini-batch del replay buffer</strong><br/>
+    <code>batch = replay_buffer.sample(batch_size=64)</code><br/>
+    Contiene <code>(obs_all, actions_all, rewards, next_obs_all, dones)</code>.</div>
+  </div>
+  <div class="loop-step">
+    <div class="loop-num" style="background:rgba(64,207,160,0.2);color:var(--accent3);">2</div>
+    <div class="loop-text"><strong>Calcular target Q con redes target (frozen)</strong><br/>
+    <code>next_actions_i = actor_target_i(next_obs_i)</code> → para cada agente<br/>
+    <code>q_target = r_i + γ · critic_target_i(next_obs_all, next_actions_all)</code></div>
+  </div>
+  <div class="loop-step">
+    <div class="loop-num" style="background:rgba(251,146,60,0.2);color:var(--dist-c);">3</div>
+    <div class="loop-text"><strong>Loss del crítico (MSE) + backprop</strong><br/>
+    <code>q_current = critic_i(obs_all, actions_all)</code><br/>
+    <code>critic_loss = F.mse_loss(q_current, q_target)</code><br/>
+    <code>critic_opt.zero_grad(); critic_loss.backward(); clip_grad_norm_; critic_opt.step()</code></div>
+  </div>
+  <div class="loop-step">
+    <div class="loop-num" style="background:rgba(167,139,250,0.2);color:var(--actor-c);">4</div>
+    <div class="loop-text"><strong>Loss del actor (policy gradient) + backprop</strong><br/>
+    <code>actions_i_new = actor_i(obs_i)</code>  ← acciones actuales del agente i<br/>
+    <code>actor_loss = −critic_i(obs_all, actions_all_replaced_i).mean()</code><br/>
+    Maximizar Q → minimizar −Q.</div>
+  </div>
+  <div class="loop-step">
+    <div class="loop-num" style="background:rgba(52,211,153,0.2);color:var(--mad-c);">5</div>
+    <div class="loop-text"><strong>Soft update de target networks (Polyak)</strong><br/>
+    <code>θ_target ← τ · θ_online + (1−τ) · θ_target</code>  con <code>τ=0.005</code><br/>
+    Actualización suave para estabilidad.</div>
+  </div>
+  <div class="loop-step">
+    <div class="loop-num" style="background:rgba(244,114,182,0.2);color:var(--noisy-c);">6</div>
+    <div class="loop-text"><strong>Re-muestrear ruido NoisyNet</strong><br/>
+    <code>actor.head.sample_noise()</code> → nuevas ε para la próxima acción.<br/>
+    Garantiza exploración variada en cada paso.</div>
+  </div>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     11. TABLA 2 — CORRESPONDENCIA EXACTA
+═══════════════════════════════════════════════════════════ -->
+<div class="section" id="table2">
+  <div class="section-title">
+    <div class="icon" style="background:rgba(167,139,250,0.12);">📋</div>
+    11. Correspondencia exacta con Tabla 2 del paper
+  </div>
+
+  <p>Cada hiperparámetro de la Tabla 2 está implementado en <code>config.py</code>
+     y se pasa a las redes PyTorch:</p>
+
+  <table>
+    <tr>
+      <th>Parámetro del Paper</th>
+      <th>Valor en el Paper</th>
+      <th>Código (<code>config.py</code>)</th>
+      <th>Dónde se usa</th>
+      <th class="td-ref">Ref.</th>
+    </tr>
+    <tr>
+      <td>Actor learning rate</td>
+      <td>5 × 10⁻⁴</td>
+      <td><code>actor_lr = 5e-4</code></td>
+      <td><code>torch.optim.Adam(actor.parameters(), lr=cfg.actor_lr)</code></td>
+      <td class="td-ref">Table 2</td>
+    </tr>
+    <tr>
+      <td>Critic learning rate</td>
+      <td>1 × 10⁻³</td>
+      <td><code>critic_lr = 1e-3</code></td>
+      <td><code>torch.optim.Adam(critic.parameters(), lr=cfg.critic_lr)</code></td>
+      <td class="td-ref">Table 2</td>
+    </tr>
+    <tr>
+      <td>Hidden layer size</td>
+      <td>256</td>
+      <td><code>hidden_dim = 256</code></td>
+      <td><code>_mlp_body(input_dim, hidden_dim=256)</code></td>
+      <td class="td-ref">Table 2</td>
+    </tr>
+    <tr>
+      <td>Batch size</td>
+      <td>64</td>
+      <td><code>batch_size = 64</code></td>
+      <td><code>replay_buffer.sample(cfg.batch_size)</code></td>
+      <td class="td-ref">Table 2</td>
+    </tr>
+    <tr>
+      <td>Discount factor γ</td>
+      <td>0.99</td>
+      <td><code>gamma = 0.99</code></td>
+      <td><code>target_q = r + gamma * next_q</code></td>
+      <td class="td-ref">Table 2</td>
+    </tr>
+    <tr>
+      <td>Soft update τ</td>
+      <td>0.005</td>
+      <td><code>tau = 0.005</code></td>
+      <td><code>tp ← τ·p + (1−τ)·tp</code></td>
+      <td class="td-ref">Table 2</td>
+    </tr>
+    <tr>
+      <td>Replay buffer size</td>
+      <td>10⁵</td>
+      <td><code>buffer_size = 100_000</code></td>
+      <td><code>ReplayBuffer(cfg.buffer_size)</code></td>
+      <td class="td-ref">Table 2</td>
+    </tr>
+    <tr>
+      <td>NoisyNet σ₀</td>
+      <td>0.5</td>
+      <td><code>sigma_init = 0.5</code></td>
+      <td><code>NoisyLinear(…, sigma_init=0.5)</code></td>
+      <td class="td-ref">§3.2</td>
+    </tr>
+    <tr>
+      <td>D3PG atoms (C51)</td>
+      <td>51</td>
+      <td><code>n_atoms = 51</code></td>
+      <td><code>DistributionalCritic(…, n_atoms=51)</code></td>
+      <td class="td-ref">§3.4</td>
+    </tr>
+    <tr>
+      <td>TD3 actor delay</td>
+      <td>2</td>
+      <td><code>actor_delay = 2</code></td>
+      <td><code>if update_count % actor_delay == 0: update actor</code></td>
+      <td class="td-ref">§3.5</td>
+    </tr>
+  </table>
+
+  <div class="callout tip">
+    <div class="ico">💡</div>
+    <div>Todos estos valores están centralizados en <code>src/maddpg_microgrid/config.py</code>
+    como dataclasses (<code>DDPGConfig</code>, <code>TD3Config</code>, <code>D3PGConfig</code>).
+    Cambiar un valor en config afecta automáticamente todas las redes que lo reciben.</div>
+  </div>
+
+  <h3>Resumen de arquitecturas por algoritmo</h3>
+  <table>
+    <tr>
+      <th>Algoritmo</th>
+      <th>Actor</th>
+      <th>Crítico</th>
+      <th>Exploración</th>
+      <th>Peculiaridad</th>
+    </tr>
+    <tr>
+      <td><span class="pill actor">DDPG</span></td>
+      <td>MLP 2×256 + NoisyLinear + tanh</td>
+      <td>MLP 2×256 escalar</td>
+      <td>NoisyNet</td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td><span class="pill actor">D3PG</span></td>
+      <td>MLP 2×256 + NoisyLinear + tanh</td>
+      <td>MLP 2×256 → 51 átomos</td>
+      <td>NoisyNet</td>
+      <td>Distribución de retorno</td>
+    </tr>
+    <tr>
+      <td><span class="pill actor">TD3</span></td>
+      <td>MLP 2×256 + NoisyLinear + tanh</td>
+      <td>2 × MLP 2×256 (twin)</td>
+      <td>NoisyNet</td>
+      <td>Actor delay=2, min(Q1,Q2)</td>
+    </tr>
+    <tr>
+      <td><span class="pill maddpg">MADDPG</span></td>
+      <td>MLP 2×256 + NoisyLinear + tanh (local)</td>
+      <td>MLP 2×256 escalar (global)</td>
+      <td>NoisyNet</td>
+      <td>Crítico ve obs+act de todos</td>
+    </tr>
+    <tr>
+      <td><span class="pill maddpg">MAD3PG</span></td>
+      <td>MLP 2×256 + NoisyLinear + tanh (local)</td>
+      <td>MLP 2×256 → 51 átomos (global)</td>
+      <td>NoisyNet</td>
+      <td>MADDPG + distribucional</td>
+    </tr>
+    <tr>
+      <td><span class="pill dqn">MADQN</span></td>
+      <td>—</td>
+      <td>MLP 2×256 → 5 Q-values</td>
+      <td>ε-greedy exp.</td>
+      <td>Acciones discretas, Double DQN</td>
+    </tr>
+    <tr>
+      <td><span class="pill critic">RBM</span></td>
+      <td colspan="3"><em>Sin red neuronal</em></td>
+      <td>Reglas deterministas</td>
+    </tr>
+  </table>
+</div>
+
+<!-- footer -->
+<div style="text-align:center; color:var(--text-muted); font-size:0.8rem; padding:44px 20px 64px; border-top:1px solid var(--border); margin-top:8px;">
+  Proyecto MADDPG Microgrid &nbsp;·&nbsp;
+  <code>src/maddpg_microgrid/networks.py</code> &nbsp;·&nbsp;
+  Redes basadas en Tabla 2 y Secciones 3.2–3.5 del paper
+</div>
+
+</div>
+</body>
+</html>

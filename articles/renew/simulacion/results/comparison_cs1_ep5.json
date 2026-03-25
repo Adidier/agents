@@ -1,0 +1,44 @@
+[
+  {
+    "algo": "ddpg",
+    "episode_savings": [
+      624744.4512171849,
+      300600.3157650673,
+      248588.60332499593
+    ],
+    "total_savings_gbp": 1173933.370307248,
+    "total_ess_loss_gbp": 300.4337349518679,
+    "adjusted_savings_gbp": 1173632.9365722963,
+    "ess_loss_pct": 0.0255920602097917,
+    "elapsed_s": 25.07626485824585,
+    "seed": 42
+  },
+  {
+    "algo": "maddpg",
+    "episode_savings": [
+      854701.7314440864,
+      858771.3079011942,
+      851647.9749649086
+    ],
+    "total_savings_gbp": 2565121.0143101895,
+    "total_ess_loss_gbp": 33.58539564098723,
+    "adjusted_savings_gbp": 2565087.4289145484,
+    "ess_loss_pct": 0.0013093103777023552,
+    "elapsed_s": 69.18068075180054,
+    "seed": 42
+  },
+  {
+    "algo": "rbm",
+    "episode_savings": [
+      6498.339494767461,
+      10519.991956171083,
+      1022.9850909070489
+    ],
+    "total_savings_gbp": 18041.316541845594,
+    "total_ess_loss_gbp": 349.1233882065213,
+    "adjusted_savings_gbp": 17692.193153639073,
+    "ess_loss_pct": 1.935132546434478,
+    "elapsed_s": 0.14156866073608398,
+    "seed": 42
+  }
+]

@@ -1,0 +1,14 @@
+{
+  "algo": "ddpg",
+  "episode_savings": [
+    457424.7579664449,
+    455561.3608231073
+  ],
+  "total_savings_gbp": 912986.1187895522,
+  "total_ess_loss_gbp": 22.38008501234627,
+  "adjusted_savings_gbp": 912963.73870454,
+  "ess_loss_pct": 0.002451306164656485,
+  "total_mga_revenue_gbp": 30756.11230233615,
+  "elapsed_s": 14.998584508895874,
+  "seed": 42
+}
